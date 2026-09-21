@@ -1,48 +1,171 @@
 # The Larder
 
-Recipe builder, 7-day meal planner, and shopping list. Next.js (App Router) + Supabase, single-user, no auth.
+A recipe book, weekly prep planner, and shopping list for one household.
+Next.js (App Router) + Supabase. One shared site password, no accounts.
+
+## Origins
+
+The Larder is a fork of [utilitybelt](https://github.com/JosiahSMoore/utilitybelt)
+by Josiah Moore, trimmed down for how this household actually cooks. The fork
+lives at [thecarterzim/utilitybelt](https://github.com/thecarterzim/utilitybelt).
+
+## What it does
+
+### Recipe book
+
+Recipes with sectioned ingredient lists, instructions, servings, and an optional
+source link. Every recipe has a Copy link button for its `/recipe/<id>` URL.
+
+### Add a recipe
+
+Paste a link (Instagram reels and posts, or any recipe website), upload a
+screenshot, or paste text. Claude reads it, turns it into the app's import
+format, and matches each ingredient against the ingredient library so you can
+review the draft before saving. Recipes can also be written by hand.
+
+### This week
+
+Instead of a calendar, the week is five buckets:
+
+- Kristine makes
+- Kristine preps
+- Other dinners
+- Lunches
+- Leighton snacks
+
+The shopping list builds from whatever is in them. **Start new week** clears
+the buckets and any recipe-derived shopping list items, but keeps items you
+added by hand. The `/week` URL is meant to be pasted into a Trello card.
+
+### Prep day
+
+Each recipe can carry its own "prep ahead" steps. The week screen collects
+them into a prep-day section, so the hand-off is one page.
+
+### Shopping list
+
+Built from the week's recipes, combined by ingredient, with quick-add for
+anything else. It has its own URL at `/list` for the phone in the store.
+
+### Ingredient library
+
+A shared list of ingredients the import matches against. Its only setting is
+*pantry staple*: staples (salt, oil, dried spices) are skipped when the list
+is built.
+
+### Cooking Mode
+
+Step-by-step instructions with timers, laid out for a phone on the counter or
+a desktop.
+
+### Removed from upstream
+
+The 7-day meal-plan calendar, daily extras, and all calorie/protein/fiber
+tracking are gone from the UI (the database columns remain but nothing reads
+them). The JSON-import Claude Skill and its ingredients-feed endpoint are also
+removed; recipe import now happens inside the app.
 
 ## Setup
 
 1. **Create a Supabase project** at [supabase.com](https://supabase.com).
-2. **Run the schema**: open the SQL editor in your project and run the contents of `supabase/schema.sql`.
-3. **Get your keys**: in Project Settings → API, copy the Project URL and the `service_role` secret key.
-4. **Set env vars**: copy `.env.local.example` to `.env.local` and fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and a `SITE_PASSWORD` of your choosing (see below).
-5. **Run it**:
+2. **Run the schema.** For a fresh install, open the SQL editor and run
+   `supabase/schema.sql`. If you already have a database from an earlier
+   version, apply the files in `supabase/migrations/` instead (the `db-query`
+   script below can do that from the terminal).
+3. **Set env vars.** Copy `.env.local.example` to `.env.local` and fill in:
+   - `SUPABASE_URL` — the Project URL.
+   - `SUPABASE_SERVICE_ROLE_KEY` — a secret key from Project Settings → API
+     Keys (or the legacy `service_role` key).
+   - `SITE_PASSWORD` — the one password everyone in the household uses.
+   - `ANTHROPIC_API_KEY` — needed for "Add a recipe" from a link, screenshot,
+     or text.
+   - `SUPABASE_ACCESS_TOKEN` (optional) — a personal access token, only used
+     by `scripts/db-query.mjs`.
+4. **Run it:**
    ```bash
    npm install
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000).
+   Open [http://localhost:3000](http://localhost:3000) and sign in with the
+   site password.
 
-The service role key is only ever read in server-side code (`lib/supabase/server.ts`, used by Server Components and Server Actions in `app/actions.ts`) — it's never sent to the browser. There's no login: all data in the database belongs to whoever can reach the deployed URL, which is the intended single-user setup.
+Never commit `.env.local`; it holds the keys.
+
+## Scripts
+
+### Seed recipes
+
+```bash
+node scripts/seed-recipes.mjs            # seed everything in scripts/seed/*.json
+node scripts/seed-recipes.mjs --dry-run  # print what would be inserted
+```
+
+Seeds recipes (and the library ingredients they use) from `scripts/seed/*.json`.
+Safe to re-run: a recipe whose name already exists is skipped, and library
+ingredients are matched by name. The seed file shape is documented at the top
+of the script.
+
+### Run SQL
+
+```bash
+node scripts/db-query.mjs "select count(*) from recipes"
+node scripts/db-query.mjs --file supabase/migrations/2026-09-20-week-items.sql
+```
+
+Runs SQL against the Supabase project through the Management API, using
+`SUPABASE_ACCESS_TOKEN` and `SUPABASE_URL` from `.env.local`. Handy for
+applying a migration without opening the SQL editor.
 
 ## Deploying to Vercel
 
-1. Push this repo to GitHub.
-2. Import it in Vercel.
-3. Add the same environment variables (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD`) in the Vercel project settings — make sure each is enabled for the **Production** environment, not just Preview/Development.
-4. Deploy.
+1. Push the repo to GitHub and import it in Vercel.
+2. Add the same environment variables (`SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD`, `ANTHROPIC_API_KEY`) in the
+   Vercel project settings, making sure each is enabled for the **Production**
+   environment, not just Preview/Development.
+3. Deploy.
+
+Vercel rejects a deployment if the commit author's email is not a verified
+email on the GitHub account doing the push. Set
+`git config user.email <verified-email>` in the repo before the first push;
+only the tip commit is checked.
 
 ## Architecture notes
 
-- **Data model**: `recipes` (ingredients stored as a `jsonb` array on the row), `meal_plan` (one row per date+slot, upserted), `shopping_list_items` (fully replaced each time you rebuild the list from the meal plan).
-- **No RLS policies**: all three tables have row-level security enabled with zero policies, which blocks the anon/public key entirely. Only the service role key (server-side only) can read or write.
-- **Client/server split**: `app/page.tsx` is a Server Component that fetches everything up front; `components/LarderApp.tsx` is a Client Component holding UI state, calling the Server Actions in `app/actions.ts` for every mutation and updating local state from the result (optimistic where it's cheap to roll back, e.g. meal-plan assignment).
-- **Password gate**: `proxy.ts` (Next.js 16's replacement for `middleware.ts`) redirects every request without a valid `site_auth` cookie to `/login`, except `/login` and `/api/login` themselves. The cookie is an HMAC of a fixed payload keyed by `SITE_PASSWORD` (`lib/site-auth.ts`) — `HttpOnly`, 10-year expiry, so it survives as long as the browser doesn't clear cookies. There's no per-user session to revoke; changing `SITE_PASSWORD` invalidates every existing cookie at once, since they were signed with the old value.
-
-## Adding another app on the same Supabase project
-
-Other single-user, no-auth apps under `biffsmidgeon.com` (their own GitHub repo and Vercel project) can share this same Supabase project instead of provisioning a new one — Supabase bills per project, and there's nothing here that requires isolation beyond separate tables. Each new app just needs to follow the same pattern this one uses:
-
-1. **Pick table names that won't collide** with this app's (`recipes`, `meal_plan`, `shopping_list_items`, `ingredients`, `daily_extras`) or any other app already on the project. Prefixing by app (e.g. `budget_transactions`) is the safest bet once there are a few apps in play.
-2. **Enable RLS with zero policies** on every new table, same as here — this blocks the anon/public key entirely, so the only way in is the service role key from server-side code.
-3. **Explicitly `grant` the new tables to `service_role`** — this is the step that's easy to forget. RLS and Postgres's `GRANT` system are two separate layers; enabling RLS doesn't grant table access, and Supabase does not always do this automatically for new tables. Skipping it is exactly what caused a "permission denied for table recipes" error the first time around here. The fix is the pattern already in `supabase/schema.sql`:
-   ```sql
-   grant usage on schema public to service_role;
-   grant all on public.your_new_table to service_role;
-   ```
-4. **Copy the same two env vars** (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) into the new app's own `.env.local` and its own Vercel project settings — same project, same keys, just duplicated into a separate deployment.
-5. **Keep the service role key server-side only** in the new app too (a `lib/supabase/server.ts`-style helper, never imported from a `"use client"` file) — it bypasses RLS by design, so leaking it to the browser would expose every app sharing the project, not just the new one.
-6. **Point a new subdomain at the new Vercel project** (e.g. `newapp.biffsmidgeon.com`), independent of this app's `larder.` DNS record.
-7. **Set the repo's git identity to a GitHub-verified email before your first push.** Vercel blocks a deployment if its commit's author email isn't a verified email on the pushing GitHub account — this has hit every app set up so far. Fix: `git config user.email <your-github-verified-email>` and `git config user.name <name>` in the new repo (this only needs setting once per repo; it overrides your global git config for that repo only). No need to rewrite any commits made before you catch this — Vercel only checks the tip commit on a given push, not full history.
+- **Data model.** `recipes` (ingredients stored as a `jsonb` array on the row,
+  plus `source_url` and `prep_steps`), `week_items` (one row per bucket +
+  recipe; the shopping list builds from these), `shopping_list_items`
+  (`source` is `recipe` or `manual`; rebuilds replace the former and leave the
+  latter alone), and `ingredients` (the library, with `pantry_staple`).
+  `meal_plan` and `daily_extras` still exist in the schema but the app no
+  longer uses them.
+- **Client/server split.** Server Components fetch everything up front. One
+  client component, `components/LarderApp.tsx`, holds UI state and calls the
+  Server Actions in `app/actions.ts` for every mutation, updating local state
+  from the result.
+- **Supabase access.** Only server-side code (`lib/supabase/server.ts`) talks
+  to Supabase, using the secret key. Every table has row-level security
+  enabled with zero policies, which blocks the public keys entirely; the secret
+  key bypasses RLS by design and is never sent to the browser. New tables also
+  need an explicit `grant all on public.<table> to service_role;` — RLS and
+  Postgres grants are separate layers, and the schema file includes this for
+  every table.
+- **Password gate.** `proxy.ts` (Next.js 16's replacement for `middleware.ts`)
+  redirects any request without a valid `site_auth` cookie to `/login`, except
+  `/login` and `/api/login` themselves. The cookie is an HMAC of a fixed
+  payload keyed by `SITE_PASSWORD` (`lib/site-auth.ts`), `HttpOnly`, with a
+  10-year expiry. There are no sessions to revoke; changing `SITE_PASSWORD`
+  signs everyone out at once because old cookies were signed with the old
+  value.
+- **Recipe import.** `app/api/import/parse/route.ts` accepts a URL, pasted
+  text, or up to six images. A URL goes through
+  `lib/server/fetch-recipe-source.ts`: Instagram captions are read from the
+  page's `og:` meta tags; other sites use their JSON-LD `Recipe` block when
+  they have one, otherwise the HTML is stripped to readable text. The text
+  and/or images then go to `lib/server/parse-recipe.ts`, which asks Claude for
+  a structured-output draft (validated by a Zod schema) and matches
+  ingredients against the library. Sites that block server-side fetching, or
+  Instagram posts whose recipe is gated behind "comment RECIPE", come back
+  with `needsScreenshot` and the UI asks for a screenshot instead. The route
+  sits behind the same password gate as every page, so the session cookie is
+  the only auth.
