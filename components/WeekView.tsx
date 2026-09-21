@@ -87,11 +87,6 @@ export function WeekView({
                   <h2 className="font-display text-lg text-stone-900 leading-tight">{bucket.label}</h2>
                   {bucket.hint && <p className="text-[11px] text-stone-400">{bucket.hint}</p>}
                 </div>
-                {bucket.prepDay && (
-                  <span className="text-[10px] font-medium uppercase tracking-wide bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full whitespace-nowrap">
-                    Thursday
-                  </span>
-                )}
               </div>
 
               <div className="space-y-1.5 flex-1">
@@ -134,15 +129,15 @@ export function WeekView({
 
       {hasPrepDay && (
         <div className="bg-amber-50 border border-stone-200 rounded-2xl p-5">
-          <h2 className="font-display text-xl text-stone-900">Thursday prep</h2>
+          <h2 className="font-display text-xl text-stone-900">Kristine&apos;s prep day</h2>
           <p className="text-stone-500 text-sm mt-1 mb-4">
-            What Kristine cooks and preps this week. Tap a recipe for the full instructions and Cooking Mode.
+            What gets cooked and prepped this week. Tap a recipe for the full instructions and Cooking Mode.
           </p>
           <div className="grid md:grid-cols-2 gap-4">
             {prepDay.map((bucket) => (
               <div key={bucket.key}>
                 <h3 className="text-[11px] font-medium text-emerald-900 uppercase tracking-wide mb-2">
-                  {bucket.key === "make" ? "Make tonight" : "Prep for later"}
+                  {bucket.key === "make" ? "Make that day" : "Prep for later"}
                 </h3>
                 {bucket.entries.length === 0 ? (
                   <p className="text-sm text-stone-400">Nothing here this week.</p>

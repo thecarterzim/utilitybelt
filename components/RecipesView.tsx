@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { BookOpen, ChevronDown, Dumbbell, Flame, Plus, Search, Upload, Wheat } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BookOpen, ChevronDown, Link as LinkIcon, Pencil, Plus, Search } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { CATEGORIES, CATEGORY_INK, CATEGORY_RAIL } from "@/lib/constants";
-import { recipeCalories, recipeFiber, recipeProtein } from "@/lib/helpers";
 import type { Recipe } from "@/lib/types";
 
 type SortMode = "name" | "ingredients";
@@ -33,6 +32,17 @@ export function RecipesView({
   onManageIngredients: () => void;
 }) {
   const [sortMode, setSortMode] = useState<SortMode>("name");
+  const [addOpen, setAddOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!addOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) setAddOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [addOpen]);
 
   const sorted = useMemo(() => {
     const copy = [...recipes];
@@ -60,20 +70,44 @@ export function RecipesView({
             <BookOpen size={15} />
             <span className="hidden md:inline">Manage ingredients</span>
           </button>
-          <button
-            onClick={onImport}
-            title="Import recipe from JSON"
-            className="flex items-center justify-center gap-1.5 bg-white border border-black/[0.09] text-black/65 text-[13px] font-medium rounded-full hover:bg-black/[0.03] w-9 h-9 md:w-auto md:px-4 md:py-[11px]"
-          >
-            <Upload size={15} />
-            <span className="hidden md:inline">Import</span>
-          </button>
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 bg-[#b0430c] text-white text-[13.5px] font-semibold px-5 py-3 rounded-full"
-          >
-            <Plus size={15} /> Add recipe
-          </button>
+          <div className="relative" ref={addMenuRef}>
+            <button
+              onClick={() => setAddOpen((o) => !o)}
+              className="flex items-center gap-1.5 bg-[#b0430c] text-white text-[13.5px] font-semibold px-5 py-3 rounded-full"
+            >
+              <Plus size={15} /> Add recipe
+            </button>
+            {addOpen && (
+              <div className="absolute right-0 mt-2 w-60 bg-white border border-black/[0.09] rounded-2xl shadow-lg p-1.5 z-30">
+                <button
+                  onClick={() => {
+                    setAddOpen(false);
+                    onImport();
+                  }}
+                  className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-black/[0.04]"
+                >
+                  <LinkIcon size={16} className="mt-0.5 text-[#0f4a35] flex-shrink-0" />
+                  <span>
+                    <span className="block text-sm font-semibold text-stone-900">From a link</span>
+                    <span className="block text-xs text-black/50">Instagram, a website, or a photo</span>
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    setAddOpen(false);
+                    onAdd();
+                  }}
+                  className="w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left hover:bg-black/[0.04]"
+                >
+                  <Pencil size={16} className="mt-0.5 text-[#0f4a35] flex-shrink-0" />
+                  <span>
+                    <span className="block text-sm font-semibold text-stone-900">Write your own</span>
+                    <span className="block text-xs text-black/50">Type it in by hand</span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -129,9 +163,6 @@ export function RecipesView({
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sorted.map((r) => {
-              const { perServing } = recipeCalories(r);
-              const { perServing: proteinPerServing } = recipeProtein(r);
-              const { perServing: fiberPerServing } = recipeFiber(r);
               const rail = CATEGORY_RAIL[r.category] ?? "#8a9bb0";
               const ink = CATEGORY_INK[r.category] ?? "#46505c";
               return (
@@ -156,16 +187,8 @@ export function RecipesView({
                     <div className="font-display text-[19px] font-semibold leading-[1.25] tracking-tight text-stone-900">
                       {r.name || "Untitled recipe"}
                     </div>
-                    <div className="flex items-center gap-4 mt-3.5">
-                      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-[#b0430c]">
-                        <Flame size={13} /> {perServing} cal
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-[#0f4a35]">
-                        <Dumbbell size={13} /> {proteinPerServing}g
-                      </span>
-                      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold tabular-nums text-[#8a6a10]">
-                        <Wheat size={13} /> {fiberPerServing}g
-                      </span>
+                    <div className="text-[12.5px] text-black/45 mt-3">
+                      {r.servings} serving{String(r.servings) === "1" ? "" : "s"}
                     </div>
                   </div>
                 </button>

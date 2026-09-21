@@ -70,7 +70,7 @@ export const CATEGORY_INK: Record<string, string> = {
 };
 
 // Display order and labels for the "This week" buckets. `prepDay` marks the
-// two buckets that make up Kristine's Thursday, which the week screen
+// two buckets that make up Kristine's prep day, which the week screen
 // summarizes separately.
 export const WEEK_BUCKETS: { key: WeekBucket; label: string; hint: string; prepDay: boolean }[] = [
   { key: "make", label: "Kristine makes", hint: "Cooked on prep day", prepDay: true },

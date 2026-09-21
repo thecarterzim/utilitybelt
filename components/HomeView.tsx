@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { BookOpen, CalendarDays, ChefHat, Check, Dumbbell, Flame, Plus, Wheat } from "lucide-react";
-import { MEAL_SLOTS, SLOT_LABEL } from "@/lib/constants";
-import { getNext7Days, slotDisplayName } from "@/lib/helpers";
-import type { DayNutrition, MealPlan, MealSlot, Recipe } from "@/lib/types";
+import { BookOpen, CalendarDays, ChefHat, Plus } from "lucide-react";
+import { WEEK_BUCKETS } from "@/lib/constants";
+import type { Recipe, WeekItem } from "@/lib/types";
 
 type View =
   | "home"
@@ -20,59 +19,23 @@ type View =
 
 const RECENT_SHORTCUTS = ["Milk", "Eggs", "Olive oil"];
 
-function MacroFigure({
-  Icon,
-  value,
-  unit,
-  color,
-  label,
-}: {
-  Icon: typeof Flame;
-  value: number;
-  unit?: string;
-  color: string;
-  label: string;
-}) {
-  return (
-    <div className="text-right">
-      <div className="flex items-center justify-end gap-1.5">
-        <Icon size={16} style={{ color }} />
-        <span className="font-display text-2xl font-semibold tabular-nums leading-none" style={{ color }}>
-          {value.toLocaleString()}
-          {unit && <span className="text-[15px]">{unit}</span>}
-        </span>
-      </div>
-      <div className="text-[10.5px] tracking-[.12em] uppercase text-black/45 mt-1">{label}</div>
-    </div>
-  );
-}
-
 export function HomeView({
   recipes,
-  days,
-  mealPlan,
-  todaysPlan,
-  dayNutrition,
+  weekItems,
   setView,
   setEditingRecipe,
+  onOpenRecipe,
   onQuickAdd,
   shoppingListCount,
-  onCookToday,
-  onToggleEaten,
 }: {
   recipes: Recipe[];
-  days: ReturnType<typeof getNext7Days>;
-  mealPlan: MealPlan;
-  todaysPlan: MealPlan[string];
-  dayNutrition: (date: string) => DayNutrition;
+  weekItems: WeekItem[];
   setView: (v: View) => void;
   setEditingRecipe: (r: Recipe | null) => void;
+  onOpenRecipe: (id: string) => void;
   onQuickAdd: (name: string) => void;
   shoppingListCount: number;
-  onCookToday: (date: string, slot: MealSlot, recipe: Recipe) => void;
-  onToggleEaten: (date: string, slot: MealSlot, eaten: boolean) => void;
 }) {
-  const today = days[0];
   const [quickAddName, setQuickAddName] = useState("");
 
   function submitQuickAdd(e: FormEvent) {
@@ -82,32 +45,21 @@ export function HomeView({
     setQuickAddName("");
   }
 
-  const dayLabel = new Date(today.date + "T00:00:00").toLocaleDateString("en-US", {
+  const dayLabel = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
 
-  // "Meals planned" only counts breakfast/lunch/dinner (matching the 7×3
-  // denominator) — snack is tracked but isn't one of the "three meals."
-  const countedSlots: MealSlot[] = ["breakfast", "lunch", "dinner"];
-  const plannedCount = days.reduce(
-    (sum, d) => sum + countedSlots.filter((slot) => slotDisplayName((mealPlan[d.date] || {})[slot], recipes)).length,
-    0
-  );
-  const plannedTotal = days.length * countedSlots.length;
-  const avgCalories = Math.round(
-    days.reduce((sum, d) => sum + dayNutrition(d.date).calories, 0) / days.length
-  );
-
-  // "Next up" is simply the first planned-but-not-yet-eaten slot, in
-  // MEAL_SLOTS order — no clock involved, so a meal you're running late on
-  // correctly stays "next" instead of silently handing that off once its
-  // usual time passes.
-  const nextUpIdx = MEAL_SLOTS.findIndex(
-    (slot) => slotDisplayName(todaysPlan[slot], recipes) && !todaysPlan[slot]?.eaten
-  );
-  const nutrition = dayNutrition(today.date);
+  const recipeById = new Map(recipes.map((r) => [r.id, r]));
+  const buckets = WEEK_BUCKETS.map((b) => ({
+    ...b,
+    recipes: weekItems
+      .filter((w) => w.bucket === b.key)
+      .map((w) => recipeById.get(w.recipeId))
+      .filter((r): r is Recipe => Boolean(r)),
+  }));
+  const weekCount = buckets.reduce((sum, b) => sum + b.recipes.length, 0);
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -115,108 +67,71 @@ export function HomeView({
         <h1 className="font-display text-3xl text-stone-900">The Larder</h1>
       </div>
 
-      {/* Today card */}
+      {/* This week card */}
       <div className="bg-[#fdf9ec] border border-[#f0dd9c] rounded-2xl p-[26px_30px]">
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div>
             <div className="text-[10.5px] tracking-[.14em] uppercase font-semibold text-[#8a6a10] mb-1.5">
-              Today
+              This week
             </div>
             <div className="font-display text-[27px] font-semibold tracking-tight text-stone-900">{dayLabel}</div>
           </div>
-          <div className="flex gap-[30px]">
-            <MacroFigure Icon={Flame} value={nutrition.calories} color="#b0430c" label="calories" />
-            <MacroFigure Icon={Dumbbell} value={nutrition.protein} unit="g" color="#0f4a35" label="protein" />
-            <MacroFigure Icon={Wheat} value={nutrition.fiber} unit="g" color="#8a6a10" label="fiber" />
+          <div className="text-right">
+            <div className="font-display text-2xl font-semibold tabular-nums leading-none text-[#0f4a35]">
+              {weekCount}
+            </div>
+            <div className="text-[10.5px] tracking-[.12em] uppercase text-black/45 mt-1">
+              recipe{weekCount === 1 ? "" : "s"} picked
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-black/[0.08] rounded-xl overflow-hidden mt-6">
-          {MEAL_SLOTS.map((slot, idx) => {
-            const name = slotDisplayName(todaysPlan[slot], recipes);
-            const recipe = todaysPlan[slot]?.recipeId
-              ? recipes.find((r) => r.id === todaysPlan[slot]?.recipeId)
-              : null;
-            const isEaten = Boolean(todaysPlan[slot]?.eaten);
-            const isNext = Boolean(name) && idx === nextUpIdx;
-            return (
-              <button
-                key={slot}
-                type="button"
-                disabled={!name}
-                onClick={() => onToggleEaten(today.date, slot, !isEaten)}
-                className={`bg-white p-4 text-left ${name ? "cursor-pointer hover:bg-black/[0.02]" : "cursor-default"}`}
-              >
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  {isEaten ? (
-                    <span className="w-[15px] h-[15px] rounded-full bg-[#0f4a35] text-white flex items-center justify-center">
-                      <Check size={9} strokeWidth={3} />
-                    </span>
-                  ) : isNext ? (
-                    <span className="w-[15px] h-[15px] rounded-full border-[1.5px] border-[#8a6a10]" />
-                  ) : (
-                    <span className="w-[15px] h-[15px] rounded-full border-[1.5px] border-dashed border-black/20" />
-                  )}
-                  <span
-                    className={`text-[10.5px] tracking-[.13em] uppercase font-semibold ${
-                      isEaten ? "text-black/45" : isNext ? "text-[#8a6a10]" : "text-black/35"
-                    }`}
-                  >
-                    {SLOT_LABEL[slot]}
-                    {isNext ? " · next" : ""}
-                  </span>
+        {weekCount === 0 ? (
+          <p className="mt-5 text-sm text-black/50">
+            Nothing picked yet. Choose what Kristine makes and preps, plus any other dinners, lunches, and snacks.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-black/[0.08] rounded-xl overflow-hidden mt-6">
+            {buckets
+              .filter((b) => b.recipes.length > 0)
+              .map((b) => (
+                <div key={b.key} className="bg-white p-4">
+                  <div className="text-[10.5px] tracking-[.13em] uppercase font-semibold text-black/45 mb-1.5">
+                    {b.label}
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {b.recipes.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => onOpenRecipe(r.id)}
+                        className="text-left text-[15px] font-semibold text-stone-900 hover:text-[#0f4a35] flex items-center gap-2"
+                      >
+                        {r.name}
+                        {b.prepDay && <ChefHat size={13} className="text-[#b0430c] flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {name ? (
-                  isEaten ? (
-                    <p className="text-[15px] font-semibold text-black/45 line-through">{name}</p>
-                  ) : isNext ? (
-                    <p className="text-[15px] font-semibold text-stone-900 flex items-center gap-2.5 flex-wrap">
-                      {name}
-                      {recipe && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onCookToday(today.date, slot, recipe);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              onCookToday(today.date, slot, recipe);
-                            }
-                          }}
-                          className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#b0430c] px-3 py-1.5 rounded-full"
-                        >
-                          <ChefHat size={12} /> Cook
-                        </span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-[15px] font-semibold text-stone-900">{name}</p>
-                  )
-                ) : (
-                  <p className="text-sm text-black/35">Nothing planned</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
+              ))}
+          </div>
+        )}
+
         <button
           onClick={() => setView("week")}
           className="mt-4 text-[13.5px] font-semibold text-[#0f4a35] hover:underline"
         >
-          Plan this week →
+          {weekCount === 0 ? "Plan this week →" : "Open this week →"}
         </button>
       </div>
 
-      {/* Quick add + This week */}
+      {/* Quick add + numbers */}
       <div className="grid grid-cols-1 md:grid-cols-[1.35fr_1fr] gap-[18px]">
         <div className="bg-white border border-black/[0.07] rounded-2xl p-[22px_24px]">
           <div className="mb-4">
             <span className="font-display text-lg font-semibold text-stone-900">Quick add to shopping list</span>
-            <p className="text-xs text-black/40 mt-1">{shoppingListCount} items on the list</p>
+            <p className="text-xs text-black/40 mt-1">
+              {shoppingListCount} item{shoppingListCount === 1 ? "" : "s"} on the list
+            </p>
           </div>
           <form onSubmit={submitQuickAdd} className="flex gap-2.5">
             <input
@@ -248,32 +163,22 @@ export function HomeView({
 
         <div className="bg-white border border-black/[0.07] rounded-2xl p-[22px_24px]">
           <div className="text-[10.5px] tracking-[.14em] uppercase font-semibold text-black/45 mb-3.5">
-            This week
+            At a glance
           </div>
           <div className="flex flex-col gap-2.5">
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-black/70">Meals planned</span>
-              <span className="font-display text-[17px] font-semibold tabular-nums">
-                {plannedCount} <span className="text-[13px] text-black/40">/ {plannedTotal}</span>
-              </span>
+              <span className="text-sm text-black/70">Recipes this week</span>
+              <span className="font-display text-[17px] font-semibold tabular-nums">{weekCount}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-black/70">Avg. calories</span>
-              <span className="font-display text-[17px] font-semibold tabular-nums">
-                {avgCalories.toLocaleString()}
-              </span>
+              <span className="text-sm text-black/70">Shopping list</span>
+              <span className="font-display text-[17px] font-semibold tabular-nums">{shoppingListCount}</span>
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-black/70">Recipes saved</span>
               <span className="font-display text-[17px] font-semibold tabular-nums">{recipes.length}</span>
             </div>
           </div>
-          <span className="block h-1 rounded bg-black/[0.08] relative mt-4">
-            <span
-              className="absolute left-0 top-0 bottom-0 rounded bg-[#0f4a35]"
-              style={{ width: `${plannedTotal > 0 ? Math.min(100, (plannedCount / plannedTotal) * 100) : 0}%` }}
-            />
-          </span>
         </div>
       </div>
 
@@ -281,12 +186,12 @@ export function HomeView({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-[18px]">
         <ActionCard
           title="Add a recipe"
-          subtitle="Write down something new"
+          subtitle="From a link, or write your own"
           Icon={Plus}
           tileColor="#0f4a35"
           onClick={() => {
             setEditingRecipe(null);
-            setView("addRecipe");
+            setView("importRecipe");
           }}
         />
         <ActionCard
@@ -317,7 +222,7 @@ function ActionCard({
 }: {
   title: string;
   subtitle: string;
-  Icon: typeof Flame;
+  Icon: typeof Plus;
   tileColor: string;
   onClick: () => void;
 }) {

@@ -12,13 +12,9 @@ import {
   Trash2,
   Pencil,
   ChevronLeft,
-  ChevronRight,
   Search,
   Printer,
   Check,
-  Flame,
-  Dumbbell,
-  Wheat,
   Package,
   Shuffle,
   Star,
@@ -26,9 +22,7 @@ import {
   Minus,
   GripVertical,
   RefreshCw,
-  Upload,
   Sparkles,
-  Copy,
   Link as LinkIcon,
 } from "lucide-react";
 import {
@@ -48,7 +42,6 @@ import {
   removeWeekItemAction,
   saveLibraryIngredientAction,
   startNewWeekAction,
-  setMealEatenAction,
   saveRecipeAction,
   syncShoppingListAction,
   toggleShoppingItemAction,
@@ -66,7 +59,6 @@ import {
   MealSlotActionModal,
   RecipePickerModal,
 } from "@/components/MealPlanView";
-import { NutritionChips } from "@/components/NutritionChips";
 import { RecipesView } from "@/components/RecipesView";
 import { WeekView } from "@/components/WeekView";
 import {
@@ -74,9 +66,7 @@ import {
   CATEGORY_STYLE,
   COUNT_UNITS,
   MEAL_SLOTS,
-  SLOT_LABEL,
   UNITS,
-  VOLUME_UNITS,
 } from "@/lib/constants";
 import {
   defaultFlexIds,
@@ -85,11 +75,7 @@ import {
   emptyRecipe,
   emptySectionHeader,
   generateId,
-  getNext7Days,
   hasFlexIngredients,
-  isConvertibleUnit,
-  libraryIngredientMacros,
-  libraryIngredientSummary,
   parseInstructionSteps,
   recipeCalories,
   recipeFiber,
@@ -99,7 +85,6 @@ import {
 import type {
   CustomMeal,
   DailyExtra,
-  DayNutrition,
   ImportIngredient,
   Ingredient,
   IngredientBaseUnit,
@@ -211,7 +196,6 @@ export default function LarderApp({
 
   const [toast, showToast] = useToast();
 
-  const days = useMemo(() => getNext7Days(), []);
 
   const mainRef = useRef<HTMLElement | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -400,25 +384,6 @@ export default function LarderApp({
     }
   }
 
-  async function toggleMealEaten(date: string, slot: MealSlot, eaten: boolean) {
-    const prev = mealPlan;
-    const current = mealPlan[date]?.[slot];
-    if (!current) return;
-    const next = {
-      ...mealPlan,
-      [date]: { ...(mealPlan[date] || {}), [slot]: { ...current, eaten } },
-    };
-    setMealPlan(next);
-    try {
-      await setMealEatenAction(date, slot, eaten);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't update that — try again.");
-    }
-  }
-
-  // Drag-to-move (or the picker's implicit swap) between two meal-plan
-  // cells. Moves into an empty target; swaps both ways if it's occupied.
   async function moveMeal(
     from: { date: string; slot: MealSlot },
     to: { date: string; slot: MealSlot }
@@ -725,7 +690,6 @@ export default function LarderApp({
     return matchesQuery && matchesCategory;
   });
 
-  const todaysPlan = mealPlan[days[0]?.date] || {};
 
   return (
     <div className="min-h-screen bg-stone-100 pb-20 md:pb-8">
@@ -755,24 +719,15 @@ export default function LarderApp({
         {view === "home" && (
           <HomeView
             recipes={recipes}
-            days={days}
-            mealPlan={mealPlan}
-            todaysPlan={todaysPlan}
-            dayNutrition={dayNutrition}
+            weekItems={weekItems}
             setView={setView}
             setEditingRecipe={setEditingRecipe}
+            onOpenRecipe={(id) => {
+              setSelectedRecipeId(id);
+              setView("recipeDetail");
+            }}
             onQuickAdd={addManualShoppingItem}
             shoppingListCount={shoppingList.length}
-            onCookToday={(date, slot, recipe) =>
-              setCookingSession({
-                recipe,
-                flexIds: mealPlan[date]?.[slot]?.flexSelection ?? defaultFlexIds(recipe),
-                date,
-                slot,
-                servingMultiplier: 1,
-              })
-            }
-            onToggleEaten={toggleMealEaten}
           />
         )}
 
@@ -816,6 +771,10 @@ export default function LarderApp({
             onDone={(recipeId) => {
               setSelectedRecipeId(recipeId);
               setView("recipeDetail");
+            }}
+            onWriteOwn={() => {
+              setEditingRecipe(null);
+              setView("addRecipe");
             }}
             onCancel={() => setView("browse")}
           />
@@ -1209,17 +1168,17 @@ function ImportRecipeView({
   onImport,
   onDone,
   onCancel,
+  onWriteOwn,
 }: {
   onImport: (payload: RecipeImportPayload) => Promise<{ recipeId: string } | null>;
   onDone: (recipeId: string) => void;
   onCancel: () => void;
+  onWriteOwn: () => void;
 }) {
-  const [inputMode, setInputMode] = useState<"smart" | "upload" | "paste">("smart");
-  const [pasteText, setPasteText] = useState("");
   const [payload, setPayload] = useState<RecipeImportPayload | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showSmartText, setShowSmartText] = useState(false);
 
   // "Smart" mode: a link, pasted text, and/or photos go to /api/import/parse,
   // which fetches the page (if any) and has Claude turn it into a payload.
@@ -1283,30 +1242,6 @@ function ImportRecipeView({
 
   const canRunSmart = Boolean(smartUrl.trim() || smartText.trim() || smartImages.length > 0);
 
-  function parseAndSetPayload(text: string) {
-    setParseError(null);
-    let json: unknown;
-    try {
-      json = JSON.parse(text);
-    } catch {
-      setParseError("That doesn't look like valid JSON.");
-      return;
-    }
-    const validated = validateImportPayload(json);
-    if (!validated.ok) {
-      setParseError(validated.error);
-      return;
-    }
-    setPayload(validated.payload);
-  }
-
-  function handleFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => parseAndSetPayload(String(reader.result));
-    reader.onerror = () => setParseError("Couldn't read that file.");
-    reader.readAsText(file);
-  }
-
   function updateRecipeIngredient(idx: number, patch: Partial<ImportIngredient>) {
     setPayload((prev) => {
       if (!prev) return prev;
@@ -1351,187 +1286,106 @@ function ImportRecipeView({
       <button onClick={onCancel} className="flex items-center gap-1 text-stone-500 text-sm mb-4 hover:text-stone-800">
         <ChevronLeft size={16} /> Back to recipes
       </button>
-      <h1 className="font-display text-2xl text-stone-900 mb-5">Import recipe</h1>
+      <h1 className="font-display text-2xl text-stone-900 mb-5">Add a recipe</h1>
 
       {!payload ? (
-        <div className="bg-amber-50 border border-dashed border-stone-300 rounded-2xl p-8">
-          <div className="flex gap-1.5 justify-center mb-6 flex-wrap">
-            <button
-              onClick={() => {
-                setInputMode("smart");
-                setParseError(null);
+        <div className="bg-amber-50 border border-stone-200 rounded-2xl p-6 sm:p-8">
+          <p className="text-stone-600 text-sm mb-5">
+            Paste a link from Instagram or any recipe site. If a site won&apos;t share the recipe, add a screenshot or the
+            text instead.
+          </p>
+
+          <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Link</label>
+          <input
+            type="url"
+            inputMode="url"
+            autoFocus
+            value={smartUrl}
+            onChange={(e) => setSmartUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canRunSmart && !parsing) runSmartImport();
+            }}
+            placeholder="https://www.instagram.com/reel/…"
+            disabled={parsing}
+            className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2.5 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-4"
+          />
+
+          <div className="flex items-center gap-3 flex-wrap mb-5">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files?.length) handlePhotos(e.target.files);
+                e.target.value = "";
               }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                inputMode === "smart"
-                  ? "bg-stone-800 text-amber-50 border-stone-800"
-                  : "border-stone-200 text-stone-600"
-              }`}
+            />
+            {smartImages.map((img, idx) => (
+              <div key={idx} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`data:${img.mediaType};base64,${img.data}`}
+                  alt={img.name}
+                  className="h-14 w-14 object-cover rounded-lg border border-stone-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSmartImages((prev) => prev.filter((_, i) => i !== idx))}
+                  disabled={parsing}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-stone-800 text-amber-50 flex items-center justify-center"
+                  title="Remove photo"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={parsing || smartImages.length >= 6}
+              className="text-sm text-stone-600 hover:text-stone-900 flex items-center gap-1.5 disabled:opacity-40"
             >
-              Link, text or photo
+              <Plus size={14} /> {smartImages.length === 0 ? "Add a screenshot" : "Add another"}
             </button>
             <button
-              onClick={() => {
-                setInputMode("upload");
-                setParseError(null);
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                inputMode === "upload"
-                  ? "bg-stone-800 text-amber-50 border-stone-800"
-                  : "border-stone-200 text-stone-600"
-              }`}
+              type="button"
+              onClick={() => setShowSmartText((v) => !v)}
+              disabled={parsing}
+              className="text-sm text-stone-600 hover:text-stone-900 flex items-center gap-1.5 disabled:opacity-40"
             >
-              Upload file
-            </button>
-            <button
-              onClick={() => {
-                setInputMode("paste");
-                setParseError(null);
-              }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                inputMode === "paste"
-                  ? "bg-stone-800 text-amber-50 border-stone-800"
-                  : "border-stone-200 text-stone-600"
-              }`}
-            >
-              Paste JSON
+              <Plus size={14} /> {showSmartText ? "Hide text" : "Paste text"}
             </button>
           </div>
 
-          {inputMode === "smart" ? (
-            <div>
-              <p className="text-stone-600 text-sm mb-1 text-center">Drop in a recipe from anywhere</p>
-              <p className="text-stone-400 text-xs mb-5 text-center">
-                A link (Instagram or any recipe site), pasted text, a screenshot — or any mix.
-              </p>
-
-              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Link</label>
-              <input
-                type="url"
-                inputMode="url"
-                value={smartUrl}
-                onChange={(e) => setSmartUrl(e.target.value)}
-                placeholder="https://www.instagram.com/reel/…"
-                disabled={parsing}
-                className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-4"
-              />
-
-              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Text</label>
-              <textarea
-                value={smartText}
-                onChange={(e) => setSmartText(e.target.value)}
-                placeholder="Paste a caption or a recipe here (optional)…"
-                rows={4}
-                disabled={parsing}
-                className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-4"
-              />
-
-              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Photos</label>
-              <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files?.length) handlePhotos(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <div className="mt-1.5 sm:mt-1 flex flex-wrap items-center gap-2 mb-5">
-                {smartImages.map((img, idx) => (
-                  <div key={idx} className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`data:${img.mediaType};base64,${img.data}`}
-                      alt={img.name}
-                      className="h-16 w-16 object-cover rounded-lg border border-stone-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSmartImages((prev) => prev.filter((_, i) => i !== idx))}
-                      disabled={parsing}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-stone-800 text-amber-50 flex items-center justify-center"
-                      title="Remove photo"
-                    >
-                      <X size={11} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  disabled={parsing || smartImages.length >= 6}
-                  className="h-16 px-4 rounded-lg border border-dashed border-stone-300 text-sm text-stone-600 flex items-center gap-1.5 disabled:opacity-40"
-                >
-                  <Plus size={14} /> {smartImages.length === 0 ? "Add screenshot" : "Add another"}
-                </button>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={runSmartImport}
-                  disabled={!canRunSmart || parsing}
-                  className="inline-flex items-center gap-1.5 bg-emerald-800 text-amber-50 text-sm font-medium px-5 py-2.5 rounded-full disabled:opacity-40"
-                >
-                  <Sparkles size={15} /> {parsing ? "Reading the recipe…" : "Create recipe"}
-                </button>
-                {parsing && (
-                  <p className="text-stone-400 text-xs mt-3">This usually takes 20–40 seconds.</p>
-                )}
-              </div>
-            </div>
-          ) : inputMode === "upload" ? (
-            <div className="text-center">
-              <Upload size={28} className="mx-auto text-stone-400 mb-3" />
-              <p className="text-stone-600 text-sm mb-1">Upload a recipe .json file</p>
-              <p className="text-stone-400 text-xs mb-4">
-                Generated by the recipe-import Claude Skill, or hand-written to match its format.
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFile(file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 bg-emerald-800 text-amber-50 text-sm font-medium px-4 py-2 rounded-full"
-              >
-                <Upload size={15} /> Choose file
-              </button>
-            </div>
-          ) : (
-            <div>
-              <p className="text-stone-600 text-sm mb-1 text-center">Paste the recipe JSON</p>
-              <p className="text-stone-400 text-xs mb-4 text-center">
-                Copy the whole output from Claude Chat and paste it below.
-              </p>
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder="{ &quot;recipe&quot;: { ... }, &quot;newIngredients&quot;: [...] }"
-                rows={8}
-                className="w-full px-3 py-2.5 rounded-lg border border-stone-200 bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-3"
-              />
-              <div className="text-center">
-                <button
-                  onClick={() => parseAndSetPayload(pasteText)}
-                  disabled={!pasteText.trim()}
-                  className="inline-flex items-center gap-1.5 bg-emerald-800 text-amber-50 text-sm font-medium px-4 py-2 rounded-full disabled:opacity-40"
-                >
-                  Parse pasted JSON
-                </button>
-              </div>
-            </div>
+          {showSmartText && (
+            <textarea
+              value={smartText}
+              onChange={(e) => setSmartText(e.target.value)}
+              placeholder="Paste the caption or the recipe here…"
+              rows={5}
+              disabled={parsing}
+              className="w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-5"
+            />
           )}
 
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <button
+              onClick={runSmartImport}
+              disabled={!canRunSmart || parsing}
+              className="inline-flex items-center gap-1.5 bg-emerald-800 text-amber-50 text-sm font-medium px-5 py-2.5 rounded-full disabled:opacity-40"
+            >
+              <Sparkles size={15} /> {parsing ? "Reading the recipe…" : "Create recipe"}
+            </button>
+            <button onClick={onWriteOwn} disabled={parsing} className="text-sm text-stone-500 hover:text-stone-800 hover:underline">
+              Or write your own instead
+            </button>
+          </div>
+          {parsing && <p className="text-stone-400 text-xs mt-3">This usually takes 20–40 seconds.</p>}
+
           {parseError && (
-            <div className="mt-4 text-center">
+            <div className="mt-4">
               <p className="text-orange-700 text-sm">{parseError}</p>
               {needsScreenshot && (
                 <button
@@ -1655,7 +1509,6 @@ function ImportRecipeView({
                       <td className="py-2 text-stone-500 text-right whitespace-nowrap">
                         {ing.quantity} {ing.unit}
                       </td>
-                      <td className="py-2 text-stone-400 text-right w-16">{ing.calories || 0} cal</td>
                       <td className="py-2 pl-2 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1">
                           <button
@@ -1742,7 +1595,6 @@ function ImportRecipeView({
             <button
               onClick={() => {
                 setPayload(null);
-                setPasteText("");
                 setParseNotes(null);
               }}
               className="px-4 py-2 rounded-full text-sm font-medium text-stone-600 hover:bg-stone-100"
@@ -1783,9 +1635,6 @@ function RecipeDetail({
   onStartCooking: (servingMultiplier: number) => void;
 }) {
   const [multiplier, setMultiplier] = useState(1);
-  const { perServing } = recipeCalories(recipe);
-  const { perServing: proteinPerServing } = recipeProtein(recipe);
-  const { perServing: fiberPerServing } = recipeFiber(recipe);
   const steps = parseInstructionSteps(recipe.instructions);
   const prepSteps = parseInstructionSteps(recipe.prepSteps ?? "");
   const baseServings = parseFloat(String(recipe.servings)) || 0;
@@ -1807,10 +1656,6 @@ function RecipeDetail({
               <span className="text-stone-500 text-sm">
                 {scaledServings} serving{scaledServings === 1 ? "" : "s"}
               </span>
-              <NutritionChips
-                nutrition={{ calories: perServing, protein: proteinPerServing, fiber: fiberPerServing }}
-                size="sm"
-              />
               {recipe.sourceUrl && (
                 <a
                   href={recipe.sourceUrl}
@@ -1903,9 +1748,6 @@ function RecipeDetail({
                       <td className="py-2 text-stone-800">
                         <span className="flex items-center gap-1.5">
                           {ing.name}
-                          {ing.servingMode === "perServing" && (
-                            <span className="text-[10px] text-stone-400">/serving</span>
-                          )}
                           {ing.isFlex && <Shuffle size={11} className="text-stone-400" />}
                           {ing.isFlex && ing.flexDefault && (
                             <Star size={11} className="text-amber-500 fill-amber-500" />
@@ -2076,10 +1918,6 @@ function RecipeForm({
 
   const realIngredientCount = recipe.ingredients.filter((i) => !i.isSectionHeader).length;
 
-  const { perServing } = recipeCalories(recipe);
-  const { perServing: proteinPerServing } = recipeProtein(recipe);
-  const { perServing: fiberPerServing } = recipeFiber(recipe);
-
   return (
     <div>
       <button onClick={onCancel} className="flex items-center gap-1 text-stone-500 text-sm mb-4 hover:text-stone-800">
@@ -2136,19 +1974,8 @@ function RecipeForm({
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <div className="mb-2">
           <label className="text-xs font-medium text-stone-500 uppercase tracking-wide">Ingredients</label>
-          <div className="flex items-center gap-3 text-xs font-medium">
-            <span className="flex items-center gap-1 text-orange-800">
-              <Flame size={12} /> {perServing} cal/serving
-            </span>
-            <span className="flex items-center gap-1 text-emerald-800">
-              <Dumbbell size={12} /> {proteinPerServing}g protein
-            </span>
-            <span className="flex items-center gap-1 text-[#7a5230]">
-              <Wheat size={12} /> {fiberPerServing}g fiber
-            </span>
-          </div>
         </div>
 
         <p className="text-[11px] text-stone-400 mb-2 flex items-center gap-1">
@@ -2158,14 +1985,9 @@ function RecipeForm({
 
         <div className="space-y-2 mb-3">
           <div className="hidden sm:grid grid-cols-12 gap-2 text-[11px] text-stone-400 px-1 pl-7">
-            <span className="col-span-4">Ingredient</span>
-            <span className="col-span-1">Qty</span>
-            <span className="col-span-1">Unit</span>
-            <span className="col-span-4 text-center flex items-center justify-center gap-1" title="Calories · Protein · Fiber · whole recipe vs. per serving (click a row's chip to edit)">
-              <Flame size={10} />
-              <Dumbbell size={10} />
-              <Wheat size={10} />
-            </span>
+            <span className="col-span-6">Ingredient</span>
+            <span className="col-span-2">Qty</span>
+            <span className="col-span-2">Unit</span>
             <span
               className="col-span-2 flex items-center justify-end gap-2"
               title="Flexible · included by default · delete"
@@ -2316,22 +2138,13 @@ function IngredientRow({
 }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showSavePrompt, setShowSavePrompt] = useState(false);
-  const [showMacrosEditor, setShowMacrosEditor] = useState(false);
   const [dismissedName, setDismissedName] = useState<string | null>(null);
-  const [promptBaseUnit, setPromptBaseUnit] = useState<IngredientBaseUnit>("grams");
-  const [promptCalories, setPromptCalories] = useState("");
-  const [promptProtein, setPromptProtein] = useState("");
-  const [promptFiber, setPromptFiber] = useState("");
-  const [promptReferenceUnit, setPromptReferenceUnit] = useState<VolumeUnit | "">("");
-  const [promptGramsPerReferenceUnit, setPromptGramsPerReferenceUnit] = useState("");
   const [promptPantryStaple, setPromptPantryStaple] = useState(false);
   const [saving, setSaving] = useState(false);
   const quantityRef = useRef<HTMLInputElement>(null);
-  // Guards against a stale-closure bug: calling quantityRef.focus() inside
-  // selectSuggestion synchronously blurs the name input (still mid-click,
-  // before React re-renders with the just-selected values), so handleNameBlur
-  // would otherwise run against the OLD ingredient and wrongly show the
-  // save-to-library prompt right after a valid pick.
+  // Selecting a suggestion focuses the quantity box, which blurs the name
+  // input before React re-renders — without this guard the blur handler
+  // would see the old name and wrongly offer to save it to the library.
   const justSelectedRef = useRef(false);
 
   const trimmedName = ingredient.name.trim();
@@ -2340,145 +2153,57 @@ function IngredientRow({
     ? library.filter((l) => l.name.toLowerCase().includes(trimmedName.toLowerCase())).slice(0, 6)
     : [];
 
-  // Copies a library ingredient's macros/link onto this row — shared by
-  // every way of matching one (picking a suggestion, typing/blurring on an
-  // exact name match, or just changing the quantity on an already-linked
-  // row) so they all behave identically. Keeps whatever unit is already on
-  // the row if it's convertible for this ingredient (grams is always
-  // convertible, so a fresh row's default "g" is respected rather than
-  // getting silently swapped to e.g. "tbsp"); only falls back to the
-  // ingredient's own natural unit when the current one genuinely can't
-  // produce a number (e.g. switching from a count-style ingredient).
-  function applyLibraryMatch(lib: LibraryIngredient, quantity: string, explicitUnit?: string) {
-    const qty = parseFloat(quantity) || 1;
-    const targetUnit =
-      explicitUnit ??
-      (isConvertibleUnit(lib, ingredient.unit) ? ingredient.unit : defaultUnitForLibraryIngredient(lib));
-    if (targetUnit !== ingredient.unit) onChange("unit", targetUnit);
-    const macros = libraryIngredientMacros(lib, qty, targetUnit);
-    if (macros) {
-      onChange("calories", String(Math.round(macros.calories * 100) / 100));
-      onChange("protein", String(Math.round(macros.protein * 100) / 100));
-      onChange("fiber", String(Math.round(macros.fiber * 100) / 100));
-    }
+  function link(lib: LibraryIngredient) {
+    onChange("name", lib.name);
     onChange("libraryId", lib.id);
+    if (!ingredient.unit) onChange("unit", defaultUnitForLibraryIngredient(lib));
   }
 
   function selectSuggestion(lib: LibraryIngredient) {
     justSelectedRef.current = true;
-    onChange("name", lib.name);
-    applyLibraryMatch(lib, ingredient.quantity);
+    link(lib);
     setShowSuggestions(false);
     setShowSavePrompt(false);
     quantityRef.current?.focus();
   }
 
-  function handleQuantityChange(value: string) {
-    onChange("quantity", value);
-    // Live-rescale macros for a linked ingredient as the amount changes.
-    if (ingredient.libraryId) {
-      const linked = library.find((l) => l.id === ingredient.libraryId);
-      if (linked) applyLibraryMatch(linked, value);
-    }
-  }
-
-  function handleUnitChange(newUnit: string) {
-    // Live-rescale macros for a linked ingredient as the unit changes —
-    // e.g. switching a linked "Flour" row from grams to cups.
-    if (ingredient.libraryId) {
-      const linked = library.find((l) => l.id === ingredient.libraryId);
-      if (linked) {
-        applyLibraryMatch(linked, ingredient.quantity, newUnit);
-        return;
-      }
-    }
-    onChange("unit", newUnit);
-  }
-
   function handleNameBlur() {
-    // Delay so a suggestion/save-prompt click has a chance to register
-    // before we evaluate and possibly hide everything on blur.
-    setTimeout(() => {
-      if (justSelectedRef.current) {
-        justSelectedRef.current = false;
-        return;
-      }
-      setShowSuggestions(false);
-      const name = ingredient.name.trim();
-      if (!name) return;
-      const match = library.find((l) => l.name.toLowerCase() === name.toLowerCase());
-      if (match) {
-        if (ingredient.libraryId !== match.id) applyLibraryMatch(match, ingredient.quantity);
-        setShowSavePrompt(false);
-        return;
-      }
-      if (ingredient.libraryId || dismissedName === name) return;
-      const qty = parseFloat(ingredient.quantity) || 0;
-      const cals = parseFloat(ingredient.calories) || 0;
-      const protein = parseFloat(ingredient.protein) || 0;
-      const fiber = parseFloat(ingredient.fiber) || 0;
-      const isCountUnit = COUNT_UNITS.includes(ingredient.unit);
-      setPromptBaseUnit(isCountUnit ? "count" : "grams");
-      // Only safe to prefill a rate when this row's own unit is already
-      // grams (direct per-100g conversion) or count-style (direct per-item
-      // pass-through) — any other unit (oz, cup, tbsp...) would need a
-      // conversion this prompt doesn't have enough info to make, so it's
-      // left blank rather than showing a wrong number.
-      if (ingredient.unit === "g" && qty > 0) {
-        setPromptCalories(cals > 0 ? String(Math.round((cals / qty) * 100 * 100) / 100) : "");
-        setPromptProtein(protein > 0 ? String(Math.round((protein / qty) * 100 * 100) / 100) : "");
-        setPromptFiber(fiber > 0 ? String(Math.round((fiber / qty) * 100 * 100) / 100) : "");
-      } else if (isCountUnit && qty > 0) {
-        setPromptCalories(cals > 0 ? String(Math.round((cals / qty) * 100) / 100) : "");
-        setPromptProtein(protein > 0 ? String(Math.round((protein / qty) * 100) / 100) : "");
-        setPromptFiber(fiber > 0 ? String(Math.round((fiber / qty) * 100) / 100) : "");
-      } else {
-        setPromptCalories("");
-        setPromptProtein("");
-        setPromptFiber("");
-      }
-      setPromptReferenceUnit("");
-      setPromptGramsPerReferenceUnit("");
-      setPromptPantryStaple(false);
-      setShowSavePrompt(true);
-    }, 150);
+    setShowSuggestions(false);
+    if (justSelectedRef.current) {
+      justSelectedRef.current = false;
+      return;
+    }
+    if (!trimmedName) return;
+    const match = library.find((l) => l.name.toLowerCase() === trimmedName.toLowerCase());
+    if (match) {
+      if (ingredient.libraryId !== match.id) link(match);
+      setShowSavePrompt(false);
+      return;
+    }
+    if (dismissedName === trimmedName) return;
+    // A brand-new ingredient: offer to add it to the library so the
+    // shopping list can learn whether it's a pantry staple.
+    setPromptPantryStaple(false);
+    setShowSavePrompt(true);
   }
 
   async function confirmSaveToLibrary() {
-    const enteredCalories = parseFloat(promptCalories);
-    if (!trimmedName || Number.isNaN(enteredCalories)) return;
     setSaving(true);
-    // The prompt collects rates per 100g (grams) or per item (count) —
-    // convert grams-based entries down to the canonical per-gram rate the
-    // library actually stores.
-    const perBaseUnit = (entered: string) => {
-      const n = parseFloat(entered) || 0;
-      return promptBaseUnit === "grams" ? n / 100 : n;
-    };
     const saved = await onSaveNewLibraryIngredient({
       name: trimmedName,
-      baseUnit: promptBaseUnit,
-      caloriesPerBaseUnit: perBaseUnit(promptCalories),
-      proteinPerBaseUnit: perBaseUnit(promptProtein),
-      fiberPerBaseUnit: perBaseUnit(promptFiber),
-      referenceUnit: promptBaseUnit === "grams" && promptReferenceUnit ? promptReferenceUnit : null,
-      gramsPerReferenceUnit:
-        promptBaseUnit === "grams" && promptGramsPerReferenceUnit
-          ? parseFloat(promptGramsPerReferenceUnit) || null
-          : null,
+      baseUnit: COUNT_UNITS.includes(ingredient.unit) ? "count" : "grams",
+      caloriesPerBaseUnit: 0,
+      proteinPerBaseUnit: 0,
+      fiberPerBaseUnit: 0,
+      referenceUnit: null,
+      gramsPerReferenceUnit: null,
       pantryStaple: promptPantryStaple,
     });
     setSaving(false);
     if (saved) {
-      applyLibraryMatch(saved, ingredient.quantity);
+      onChange("libraryId", saved.id);
       setShowSavePrompt(false);
     }
-  }
-
-  function toggleFlex() {
-    const next = !ingredient.isFlex;
-    onChange("isFlex", next);
-    if (!next) onChange("flexDefault", false);
   }
 
   function dismissSavePrompt() {
@@ -2486,9 +2211,15 @@ function IngredientRow({
     setShowSavePrompt(false);
   }
 
+  function toggleFlex() {
+    const next = !ingredient.isFlex;
+    onChange("isFlex", next);
+    onChange("flexDefault", next ? Boolean(ingredient.flexDefault) : false);
+  }
+
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-12 gap-2 items-start">
-      <div className="col-span-4 sm:col-span-4 relative">
+    <div className="grid grid-cols-6 sm:grid-cols-12 gap-2 items-start">
+      <div className="col-span-6 sm:col-span-6 relative">
         <input
           value={ingredient.name}
           onChange={(e) => {
@@ -2503,25 +2234,65 @@ function IngredientRow({
           className="w-full px-3.5 py-3 sm:px-2.5 sm:py-2 pr-7 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
         />
         {exactMatch && (
-          <BookOpen size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-600" />
+          <BookOpen
+            size={13}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-emerald-600"
+            aria-label={exactMatch.pantryStaple ? "In your library (pantry staple)" : "In your library"}
+          />
         )}
 
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute z-10 mt-1 w-full bg-white border border-stone-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-            {suggestions.map((s) => (
+            {suggestions.map((sug) => (
               <button
-                key={s.id}
+                key={sug.id}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => selectSuggestion(s)}
+                onClick={() => selectSuggestion(sug)}
                 className="w-full text-left px-3 py-2.5 sm:py-2 text-base sm:text-sm hover:bg-emerald-50 flex items-center justify-between gap-2"
               >
-                <span className="text-stone-800 truncate">{s.name}</span>
-                <span className="text-stone-400 text-xs whitespace-nowrap">
-                  {libraryIngredientSummary(s)}
-                </span>
+                <span className="text-stone-800 truncate">{sug.name}</span>
+                {sug.pantryStaple && (
+                  <span className="text-stone-400 text-xs whitespace-nowrap flex items-center gap-1">
+                    <Package size={11} /> Pantry
+                  </span>
+                )}
               </button>
             ))}
+          </div>
+        )}
+
+        {showSavePrompt && (
+          <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm">
+            <p className="text-stone-700 mb-2">
+              Add <span className="font-medium">{trimmedName}</span> to your ingredient library?
+            </p>
+            <label className="flex items-center gap-1.5 text-sm text-stone-600 mb-3">
+              <input
+                type="checkbox"
+                checked={promptPantryStaple}
+                onChange={(e) => setPromptPantryStaple(e.target.checked)}
+                className="rounded border-stone-300"
+              />
+              Pantry staple (always on hand, skip on shopping lists)
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={confirmSaveToLibrary}
+                disabled={saving}
+                className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-800 text-amber-50 disabled:opacity-40"
+              >
+                {saving ? "Saving…" : "Add to library"}
+              </button>
+              <button
+                type="button"
+                onClick={dismissSavePrompt}
+                className="px-3 py-1.5 rounded-full text-xs font-medium text-stone-600 hover:bg-stone-100"
+              >
+                Not now
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -2530,16 +2301,16 @@ function IngredientRow({
         ref={quantityRef}
         type="number"
         value={ingredient.quantity}
-        onChange={(e) => handleQuantityChange(e.target.value)}
+        onChange={(e) => onChange("quantity", e.target.value)}
         placeholder="0"
         title="Quantity"
-        className="col-span-1 sm:col-span-1 px-2.5 py-3 sm:px-1.5 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
+        className="col-span-2 sm:col-span-2 px-2.5 py-3 sm:px-2 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
       />
       <select
         value={ingredient.unit}
-        onChange={(e) => handleUnitChange(e.target.value)}
+        onChange={(e) => onChange("unit", e.target.value)}
         title="Unit"
-        className="col-span-1 sm:col-span-1 px-1.5 py-3 sm:px-1 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
+        className="col-span-2 sm:col-span-2 px-1.5 py-3 sm:px-1.5 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
       >
         {UNITS.map((u) => (
           <option key={u} value={u}>
@@ -2547,100 +2318,7 @@ function IngredientRow({
           </option>
         ))}
       </select>
-      <div
-        className="col-span-2 sm:col-span-4 relative"
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget)) setShowMacrosEditor(false);
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setShowMacrosEditor((v) => !v)}
-          title="Edit calories, protein, fiber, and whole recipe vs. per serving"
-          className="w-full min-h-11 sm:min-h-9 py-2 sm:py-1 px-1 rounded-lg flex items-center justify-center flex-wrap gap-x-2 sm:gap-x-1.5 gap-y-0.5 text-sm sm:text-xs hover:bg-stone-200/60 transition-colors"
-        >
-          <span className="flex items-center gap-0.5 text-orange-800 font-medium">
-            <Flame size={13} /> {ingredient.calories || 0}
-          </span>
-          <span className="flex items-center gap-0.5 text-emerald-800 font-medium">
-            <Dumbbell size={13} /> {ingredient.protein || 0}
-          </span>
-          <span className="flex items-center gap-0.5 text-[#7a5230] font-medium">
-            <Wheat size={13} /> {ingredient.fiber || 0}
-          </span>
-        </button>
-
-        {showMacrosEditor && (
-          <div className="absolute z-20 right-0 mt-1 w-52 bg-white border border-stone-200 rounded-lg shadow-lg p-3 space-y-2.5">
-            <div>
-              <label className="text-[10px] text-stone-400 uppercase tracking-wide">Calories</label>
-              <input
-                type="number"
-                autoFocus
-                value={ingredient.calories}
-                onChange={(e) => onChange("calories", e.target.value)}
-                className="mt-0.5 w-full px-2.5 py-2 sm:px-2 sm:py-1.5 rounded border border-stone-200 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-stone-400 uppercase tracking-wide">Protein (g)</label>
-              <input
-                type="number"
-                value={ingredient.protein}
-                onChange={(e) => onChange("protein", e.target.value)}
-                className="mt-0.5 w-full px-2.5 py-2 sm:px-2 sm:py-1.5 rounded border border-stone-200 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-stone-400 uppercase tracking-wide">Fiber (g)</label>
-              <input
-                type="number"
-                value={ingredient.fiber}
-                onChange={(e) => onChange("fiber", e.target.value)}
-                className="mt-0.5 w-full px-2.5 py-2 sm:px-2 sm:py-1.5 rounded border border-stone-200 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-              />
-            </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[10px] text-stone-400 uppercase tracking-wide">
-                {ingredient.servingMode === "perServing" ? "Per serving" : "Whole recipe"}
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={ingredient.servingMode === "perServing"}
-                onClick={() =>
-                  onChange("servingMode", ingredient.servingMode === "perServing" ? "whole" : "perServing")
-                }
-                title={
-                  ingredient.servingMode === "perServing"
-                    ? "Per serving — click for whole recipe"
-                    : "Whole recipe — click for per serving"
-                }
-              >
-                <span
-                  className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
-                    ingredient.servingMode === "perServing" ? "bg-emerald-700" : "bg-stone-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      ingredient.servingMode === "perServing" ? "translate-x-4" : "translate-x-0.5"
-                    }`}
-                  />
-                </span>
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowMacrosEditor(false)}
-              className="w-full text-sm sm:text-xs font-medium text-emerald-800 hover:underline pt-1"
-            >
-              Done
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-1">
+      <div className="col-span-2 sm:col-span-2 flex items-center justify-end gap-1">
         <button
           type="button"
           onClick={toggleFlex}
@@ -2655,17 +2333,10 @@ function IngredientRow({
           <button
             type="button"
             onClick={() => onChange("flexDefault", !ingredient.flexDefault)}
-            title={
-              ingredient.flexDefault
-                ? "Included by default when scheduled (click to change)"
-                : "Include by default when scheduled"
-            }
+            title={ingredient.flexDefault ? "Included by default (click to change)" : "Include by default"}
             className="h-11 sm:h-9 px-1 flex items-center justify-center flex-shrink-0"
           >
-            <Star
-              size={17}
-              className={ingredient.flexDefault ? "text-amber-500 fill-amber-500" : "text-stone-300"}
-            />
+            <Star size={17} className={ingredient.flexDefault ? "text-amber-500 fill-amber-500" : "text-stone-300"} />
           </button>
         )}
         <button
@@ -2678,105 +2349,6 @@ function IngredientRow({
           <Trash2 size={15} className="hidden sm:block" />
         </button>
       </div>
-
-      {showSavePrompt && (
-        <div className="col-span-2 sm:col-span-12 p-3 sm:p-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-sm sm:text-xs space-y-2">
-          <p className="text-stone-700">Save “{trimmedName}” to your ingredient library?</p>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setPromptBaseUnit("grams")}
-              className={`flex-1 px-2 py-1.5 rounded border text-sm sm:text-xs font-medium ${
-                promptBaseUnit === "grams"
-                  ? "bg-stone-800 text-amber-50 border-stone-800"
-                  : "border-stone-200 text-stone-600 bg-white"
-              }`}
-            >
-              By weight/volume (grams)
-            </button>
-            <button
-              type="button"
-              onClick={() => setPromptBaseUnit("count")}
-              className={`flex-1 px-2 py-1.5 rounded border text-sm sm:text-xs font-medium ${
-                promptBaseUnit === "count"
-                  ? "bg-stone-800 text-amber-50 border-stone-800"
-                  : "border-stone-200 text-stone-600 bg-white"
-              }`}
-            >
-              By item (count)
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-1.5">
-            <input
-              type="number"
-              value={promptCalories}
-              onChange={(e) => setPromptCalories(e.target.value)}
-              placeholder={promptBaseUnit === "grams" ? "Cal/100g" : "Cal/item"}
-              className="px-2.5 py-2 sm:px-2 sm:py-1 rounded border border-stone-200 bg-white text-sm sm:text-xs"
-            />
-            <input
-              type="number"
-              value={promptProtein}
-              onChange={(e) => setPromptProtein(e.target.value)}
-              placeholder={promptBaseUnit === "grams" ? "Protein/100g" : "Protein/item"}
-              className="px-2.5 py-2 sm:px-2 sm:py-1 rounded border border-stone-200 bg-white text-sm sm:text-xs"
-            />
-            <input
-              type="number"
-              value={promptFiber}
-              onChange={(e) => setPromptFiber(e.target.value)}
-              placeholder={promptBaseUnit === "grams" ? "Fiber/100g" : "Fiber/item"}
-              className="px-2.5 py-2 sm:px-2 sm:py-1 rounded border border-stone-200 bg-white text-sm sm:text-xs"
-            />
-          </div>
-          {promptBaseUnit === "grams" && (
-            <div className="grid grid-cols-2 gap-2 sm:gap-1.5">
-              <select
-                value={promptReferenceUnit}
-                onChange={(e) => setPromptReferenceUnit(e.target.value as VolumeUnit | "")}
-                className="px-2 py-2 sm:px-1.5 sm:py-1 rounded border border-stone-200 bg-white text-sm sm:text-xs"
-              >
-                <option value="">No volume conversion</option>
-                {VOLUME_UNITS.map((u) => (
-                  <option key={u} value={u}>
-                    Convert {u}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="number"
-                value={promptGramsPerReferenceUnit}
-                onChange={(e) => setPromptGramsPerReferenceUnit(e.target.value)}
-                placeholder={promptReferenceUnit ? `Grams per ${promptReferenceUnit}` : "Grams per —"}
-                disabled={!promptReferenceUnit}
-                className="px-2.5 py-2 sm:px-2 sm:py-1 rounded border border-stone-200 bg-white text-sm sm:text-xs disabled:opacity-40"
-              />
-            </div>
-          )}
-          <label className="flex items-center gap-1.5 text-stone-600">
-            <input
-              type="checkbox"
-              checked={promptPantryStaple}
-              onChange={(e) => setPromptPantryStaple(e.target.checked)}
-              className="rounded border-stone-300"
-            />
-            Pantry staple (skip in shopping list)
-          </label>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={dismissSavePrompt} className="text-stone-500 hover:underline">
-              Not now
-            </button>
-            <button
-              type="button"
-              onClick={confirmSaveToLibrary}
-              disabled={saving || !promptCalories}
-              className="text-emerald-800 font-medium hover:underline disabled:opacity-40"
-            >
-              Save to library
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -2890,120 +2462,126 @@ function ShoppingListView({
 
 function IngredientLibraryView({
   library,
+  onBack,
   onAdd,
   onUpdate,
   onDelete,
   onAddToShoppingList,
-  onBack,
 }: {
   library: LibraryIngredient[];
+  onBack: () => void;
   onAdd: (input: LibraryIngredientInput) => Promise<LibraryIngredient | null>;
   onUpdate: (id: string, input: LibraryIngredientInput) => Promise<LibraryIngredient | null>;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
   onAddToShoppingList: (name: string) => void;
-  onBack: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [pantryOnly, setPantryOnly] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [formName, setFormName] = useState("");
-  const [formBaseUnit, setFormBaseUnit] = useState<IngredientBaseUnit>("grams");
-  const [formCalories, setFormCalories] = useState("");
-  const [formProtein, setFormProtein] = useState("");
-  const [formFiber, setFormFiber] = useState("");
-  const [formReferenceUnit, setFormReferenceUnit] = useState<VolumeUnit | "">("");
-  const [formGramsPerReferenceUnit, setFormGramsPerReferenceUnit] = useState("");
   const [formPantryStaple, setFormPantryStaple] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Same shape as /api/ingredients-feed — a client-side copy of that same
-  // export, for pasting straight into Claude Chat when a live fetch isn't
-  // reliable (its fetch tool caches by URL, which made a repeat check
-  // return stale data even with the feed's own no-store headers).
-  async function copyLibraryAsJson() {
-    const payload = {
-      ingredients: library.map((l) => ({
-        id: l.id,
-        name: l.name,
-        baseUnit: l.baseUnit,
-        caloriesPerBaseUnit: l.caloriesPerBaseUnit,
-        proteinPerBaseUnit: l.proteinPerBaseUnit,
-        fiberPerBaseUnit: l.fiberPerBaseUnit,
-        referenceUnit: l.referenceUnit ?? null,
-        gramsPerReferenceUnit: l.gramsPerReferenceUnit ?? null,
-        pantryStaple: l.pantryStaple,
-      })),
-    };
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API can fail (permissions, insecure context) — nothing
-      // more graceful to do than leave the button as if nothing happened.
-    }
-  }
 
   const filtered = library.filter(
     (i) => i.name.toLowerCase().includes(query.toLowerCase()) && (!pantryOnly || i.pantryStaple)
   );
-  const isAdding = editingId === "new";
+  const pantryCount = library.filter((i) => i.pantryStaple).length;
 
   function startAdd() {
-    setEditingId("new");
+    setEditingId(null);
     setFormName("");
-    setFormBaseUnit("grams");
-    setFormCalories("");
-    setFormProtein("");
-    setFormFiber("");
-    setFormReferenceUnit("");
-    setFormGramsPerReferenceUnit("");
     setFormPantryStaple(false);
+    setAdding(true);
   }
 
   function startEdit(ing: LibraryIngredient) {
+    setAdding(false);
     setEditingId(ing.id);
     setFormName(ing.name);
-    setFormBaseUnit(ing.baseUnit);
-    // Displayed per 100g (grams) or per item (count) — the natural unit a
-    // nutrition label already gives you — even though the stored rate is
-    // always per gram internally.
-    const scale = ing.baseUnit === "grams" ? 100 : 1;
-    setFormCalories(String(ing.caloriesPerBaseUnit * scale));
-    setFormProtein(String(ing.proteinPerBaseUnit * scale));
-    setFormFiber(String(ing.fiberPerBaseUnit * scale));
-    setFormReferenceUnit(ing.referenceUnit ?? "");
-    setFormGramsPerReferenceUnit(
-      ing.gramsPerReferenceUnit != null ? String(ing.gramsPerReferenceUnit) : ""
-    );
     setFormPantryStaple(ing.pantryStaple);
   }
 
-  async function submitForm() {
-    const name = formName.trim();
-    const enteredCalories = parseFloat(formCalories);
-    if (!name || Number.isNaN(enteredCalories) || !editingId) return;
-    setSaving(true);
-    const scale = formBaseUnit === "grams" ? 100 : 1;
-    const input: LibraryIngredientInput = {
-      name,
-      baseUnit: formBaseUnit,
-      caloriesPerBaseUnit: enteredCalories / scale,
-      proteinPerBaseUnit: (parseFloat(formProtein) || 0) / scale,
-      fiberPerBaseUnit: (parseFloat(formFiber) || 0) / scale,
-      referenceUnit: formBaseUnit === "grams" && formReferenceUnit ? formReferenceUnit : null,
-      gramsPerReferenceUnit:
-        formBaseUnit === "grams" && formGramsPerReferenceUnit
-          ? parseFloat(formGramsPerReferenceUnit) || null
-          : null,
+  function cancelForm() {
+    setAdding(false);
+    setEditingId(null);
+  }
+
+  function inputFor(existing: LibraryIngredient | null): LibraryIngredientInput {
+    return {
+      name: formName.trim(),
+      baseUnit: existing?.baseUnit ?? "grams",
+      caloriesPerBaseUnit: existing?.caloriesPerBaseUnit ?? 0,
+      proteinPerBaseUnit: existing?.proteinPerBaseUnit ?? 0,
+      fiberPerBaseUnit: existing?.fiberPerBaseUnit ?? 0,
+      referenceUnit: existing?.referenceUnit ?? null,
+      gramsPerReferenceUnit: existing?.gramsPerReferenceUnit ?? null,
       pantryStaple: formPantryStaple,
     };
-    const result = isAdding ? await onAdd(input) : await onUpdate(editingId, input);
-    setSaving(false);
-    if (result) setEditingId(null);
   }
+
+  async function submitForm() {
+    if (!formName.trim()) return;
+    setSaving(true);
+    const existing = editingId ? library.find((l) => l.id === editingId) ?? null : null;
+    const result = editingId
+      ? await onUpdate(editingId, inputFor(existing))
+      : await onAdd(inputFor(null));
+    setSaving(false);
+    if (result) cancelForm();
+  }
+
+  // A one-tap pantry toggle on each row — the most common edit by far.
+  async function togglePantry(ing: LibraryIngredient) {
+    await onUpdate(ing.id, {
+      name: ing.name,
+      baseUnit: ing.baseUnit,
+      caloriesPerBaseUnit: ing.caloriesPerBaseUnit,
+      proteinPerBaseUnit: ing.proteinPerBaseUnit,
+      fiberPerBaseUnit: ing.fiberPerBaseUnit,
+      referenceUnit: ing.referenceUnit ?? null,
+      gramsPerReferenceUnit: ing.gramsPerReferenceUnit ?? null,
+      pantryStaple: !ing.pantryStaple,
+    });
+  }
+
+  const form = (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 py-3 bg-emerald-50/60">
+      <input
+        autoFocus
+        value={formName}
+        onChange={(e) => setFormName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submitForm();
+          if (e.key === "Escape") cancelForm();
+        }}
+        placeholder="Ingredient name"
+        className="flex-1 px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+      />
+      <label className="flex items-center gap-1.5 text-sm text-stone-600 whitespace-nowrap">
+        <input
+          type="checkbox"
+          checked={formPantryStaple}
+          onChange={(e) => setFormPantryStaple(e.target.checked)}
+          className="rounded border-stone-300"
+        />
+        Pantry staple
+      </label>
+      <div className="flex gap-2 justify-end">
+        <button onClick={cancelForm} className="px-3 py-2 rounded-full text-sm font-medium text-stone-600 hover:bg-stone-100">
+          Cancel
+        </button>
+        <button
+          onClick={submitForm}
+          disabled={saving || !formName.trim()}
+          className="px-4 py-2 rounded-full text-sm font-medium bg-emerald-800 text-amber-50 disabled:opacity-40"
+        >
+          {saving ? "Saving…" : editingId ? "Save" : "Add"}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -3013,193 +2591,109 @@ function IngredientLibraryView({
 
       <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-[32px] font-semibold tracking-tight text-stone-900">Ingredient library</h1>
-          <p className="text-[13px] text-black/45 mt-1">{library.length} saved</p>
+          <h1 className="font-display text-[32px] font-semibold tracking-tight text-stone-900">Ingredients</h1>
+          <p className="text-[13px] text-black/45 mt-1">
+            {library.length} in your library · {pantryCount} pantry staple{pantryCount === 1 ? "" : "s"}
+          </p>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={copyLibraryAsJson}
-            title="Copy the full ingredient library as JSON — paste into the recipe-import Claude Skill"
-            className="flex items-center gap-1.5 bg-white border border-black/[0.09] text-black/65 text-[13px] font-medium rounded-full px-4 py-[11px]"
-          >
-            {copied ? <Check size={15} className="text-emerald-700" /> : <Copy size={15} />}
-            {copied ? "Copied!" : "Copy JSON"}
-          </button>
-          <button
-            onClick={startAdd}
-            className="flex items-center gap-1.5 bg-[#0f4a35] text-white text-[13.5px] font-semibold px-5 py-3 rounded-full"
-          >
-            <Plus size={15} /> Add ingredient
-          </button>
-        </div>
-      </div>
-
-      <div className="relative mb-5">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/35" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search ingredients…"
-          className="w-full h-11 pl-9 pr-3 rounded-full bg-white border border-black/[0.09] text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-        />
-      </div>
-
-      <div className="flex gap-1.5 mb-5">
         <button
-          onClick={() => setPantryOnly(false)}
-          className={`px-[15px] py-2.5 rounded-full text-[12.5px] font-medium ${
-            !pantryOnly ? "bg-[#0f4a35] text-white" : "bg-white border border-black/[0.09] text-black/60"
-          }`}
+          onClick={startAdd}
+          className="flex items-center gap-1.5 bg-[#b0430c] text-white text-[13.5px] font-semibold px-5 py-3 rounded-full"
         >
-          All ingredients
-        </button>
-        <button
-          onClick={() => setPantryOnly(true)}
-          className={`flex items-center gap-1 px-[15px] py-2.5 rounded-full text-[12.5px] font-medium ${
-            pantryOnly ? "bg-[#0f4a35] text-white" : "bg-white border border-black/[0.09] text-black/60"
-          }`}
-        >
-          <Package size={11} /> Pantry staples
+          <Plus size={15} /> Add ingredient
         </button>
       </div>
 
-      {isAdding && (
-        <IngredientLibraryForm
-          title="New ingredient"
-          name={formName}
-          setName={setFormName}
-          baseUnit={formBaseUnit}
-          setBaseUnit={setFormBaseUnit}
-          calories={formCalories}
-          setCalories={setFormCalories}
-          protein={formProtein}
-          setProtein={setFormProtein}
-          fiber={formFiber}
-          setFiber={setFormFiber}
-          referenceUnit={formReferenceUnit}
-          setReferenceUnit={setFormReferenceUnit}
-          gramsPerReferenceUnit={formGramsPerReferenceUnit}
-          setGramsPerReferenceUnit={setFormGramsPerReferenceUnit}
-          pantryStaple={formPantryStaple}
-          setPantryStaple={setFormPantryStaple}
-          onCancel={() => setEditingId(null)}
-          onSubmit={submitForm}
-          saving={saving}
-        />
-      )}
+      <p className="text-sm text-stone-500 mb-4">
+        Pantry staples are things you always have (salt, oil, spices). They&apos;re skipped when a shopping list is built.
+      </p>
 
-      {library.length === 0 ? (
-        <EmptyState
-          title="No ingredients yet"
-          body="Add ingredients here, or save them straight from a recipe as you go."
-          actionLabel="Add ingredient"
-          onAction={startAdd}
-        />
-      ) : filtered.length === 0 ? (
-        <p className="text-sm text-stone-500 text-center py-10">
-          {pantryOnly
-            ? query
-              ? `No pantry staples match “${query}”.`
-              : "No pantry staples marked yet. Mark ingredients as staples while editing them."
-            : `No ingredients match “${query}”.`}
-        </p>
-      ) : (
-        <div className="bg-white border border-black/[0.07] rounded-2xl divide-y divide-black/[0.06]">
-          {filtered.map((ing) =>
-            editingId === ing.id ? (
-              <IngredientLibraryForm
-                key={ing.id}
-                title="Edit ingredient"
-                name={formName}
-                setName={setFormName}
-                baseUnit={formBaseUnit}
-                setBaseUnit={setFormBaseUnit}
-                calories={formCalories}
-                setCalories={setFormCalories}
-                protein={formProtein}
-                setProtein={setFormProtein}
-                fiber={formFiber}
-                setFiber={setFormFiber}
-                referenceUnit={formReferenceUnit}
-                setReferenceUnit={setFormReferenceUnit}
-                gramsPerReferenceUnit={formGramsPerReferenceUnit}
-                setGramsPerReferenceUnit={setFormGramsPerReferenceUnit}
-                pantryStaple={formPantryStaple}
-                setPantryStaple={setFormPantryStaple}
-                onCancel={() => setEditingId(null)}
-                onSubmit={submitForm}
-                saving={saving}
-                inline
-              />
-            ) : (
-              <div key={ing.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-stone-800 flex items-center gap-1.5">
-                    {ing.name}
-                    {ing.pantryStaple && (
-                      <span
-                        className="flex items-center gap-0.5 text-[10px] font-normal text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded-full"
-                        title="Pantry staple — skipped in shopping lists by default"
-                      >
-                        <Package size={9} /> Pantry
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-stone-400">
-                    {ing.baseUnit === "grams" ? (
-                      <>
-                        {Math.round(ing.caloriesPerBaseUnit * 100 * 100) / 100} cal ·{" "}
-                        {Math.round(ing.proteinPerBaseUnit * 100 * 100) / 100}g protein ·{" "}
-                        {Math.round(ing.fiberPerBaseUnit * 100 * 100) / 100}g fiber{" "}
-                        <span className="text-stone-300">/ 100g</span>
-                      </>
-                    ) : (
-                      <>
-                        {ing.caloriesPerBaseUnit} cal · {ing.proteinPerBaseUnit}g protein ·{" "}
-                        {ing.fiberPerBaseUnit}g fiber <span className="text-stone-300">/ item</span>
-                      </>
-                    )}
-                    {ing.referenceUnit && ing.gramsPerReferenceUnit && (
-                      <span className="text-stone-300">
-                        {" "}
-                        · {ing.gramsPerReferenceUnit}g/{ing.referenceUnit}
-                      </span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => onAddToShoppingList(ing.name)}
-                    title="Add to shopping list"
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-emerald-700 hover:bg-emerald-50"
-                  >
-                    <Plus size={14} />
-                  </button>
-                  <button
-                    onClick={() => startEdit(ing)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => setConfirmDeleteId(ing.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-orange-700 hover:bg-orange-50"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+        <div className="relative flex-1 max-w-[420px]">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-black/35" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search ingredients…"
+            className="w-full h-11 pl-9 pr-3 rounded-full bg-white border border-black/[0.09] text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+          />
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setPantryOnly(false)}
+            className={`px-[15px] py-2.5 rounded-full text-[12.5px] font-medium ${
+              !pantryOnly ? "bg-[#0f4a35] text-white" : "bg-white border border-black/[0.09] text-black/60"
+            }`}
+          >
+            All
+          </button>
+          <button
+            onClick={() => setPantryOnly(true)}
+            className={`px-[15px] py-2.5 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 ${
+              pantryOnly ? "bg-[#0f4a35] text-white" : "bg-white border border-black/[0.09] text-black/60"
+            }`}
+          >
+            <Package size={12} /> Pantry staples
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-black/[0.07] rounded-2xl divide-y divide-stone-100 overflow-hidden">
+        {adding && form}
+        {filtered.length === 0 && !adding && (
+          <p className="px-4 py-8 text-sm text-stone-400 text-center">
+            {query ? `Nothing matches “${query}”.` : pantryOnly ? "No pantry staples marked yet." : "No ingredients yet."}
+          </p>
+        )}
+        {filtered.map((ing) =>
+          editingId === ing.id ? (
+            <div key={ing.id}>{form}</div>
+          ) : (
+            <div key={ing.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+              <p className="text-sm font-medium text-stone-800 truncate">{ing.name}</p>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => togglePantry(ing)}
+                  title={ing.pantryStaple ? "Pantry staple (click to unmark)" : "Mark as pantry staple"}
+                  className={`flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full ${
+                    ing.pantryStaple ? "bg-stone-800 text-amber-50" : "text-stone-400 hover:bg-stone-100"
+                  }`}
+                >
+                  <Package size={11} /> Pantry
+                </button>
+                <button
+                  onClick={() => onAddToShoppingList(ing.name)}
+                  title="Add to shopping list"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-emerald-700 hover:bg-emerald-50"
+                >
+                  <Plus size={14} />
+                </button>
+                <button
+                  onClick={() => startEdit(ing)}
+                  title="Rename"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-stone-500 hover:bg-stone-100"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteId(ing.id)}
+                  title="Delete"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-stone-400 hover:text-orange-700 hover:bg-orange-50"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
-            )
-          )}
-        </div>
-      )}
+            </div>
+          )
+        )}
+      </div>
 
       {confirmDeleteId && (
         <ConfirmModal
-          message="Delete this ingredient from your library? Recipes that already used it keep their own saved amounts — this only affects future autocomplete and autofill."
+          message="Delete this ingredient from your library? Recipes that use it keep their own copy."
           onCancel={() => setConfirmDeleteId(null)}
-          onConfirm={() => {
-            onDelete(confirmDeleteId);
+          onConfirm={async () => {
+            await onDelete(confirmDeleteId);
             setConfirmDeleteId(null);
           }}
         />
@@ -3207,163 +2701,3 @@ function IngredientLibraryView({
     </div>
   );
 }
-
-function IngredientLibraryForm({
-  title,
-  name,
-  setName,
-  baseUnit,
-  setBaseUnit,
-  calories,
-  setCalories,
-  protein,
-  setProtein,
-  fiber,
-  setFiber,
-  referenceUnit,
-  setReferenceUnit,
-  gramsPerReferenceUnit,
-  setGramsPerReferenceUnit,
-  pantryStaple,
-  setPantryStaple,
-  onCancel,
-  onSubmit,
-  saving,
-  inline,
-}: {
-  title: string;
-  name: string;
-  setName: (v: string) => void;
-  baseUnit: IngredientBaseUnit;
-  setBaseUnit: (v: IngredientBaseUnit) => void;
-  calories: string;
-  setCalories: (v: string) => void;
-  protein: string;
-  setProtein: (v: string) => void;
-  fiber: string;
-  setFiber: (v: string) => void;
-  referenceUnit: VolumeUnit | "";
-  setReferenceUnit: (v: VolumeUnit | "") => void;
-  gramsPerReferenceUnit: string;
-  setGramsPerReferenceUnit: (v: string) => void;
-  pantryStaple: boolean;
-  setPantryStaple: (v: boolean) => void;
-  onCancel: () => void;
-  onSubmit: () => void;
-  saving: boolean;
-  inline?: boolean;
-}) {
-  const rateSuffix = baseUnit === "grams" ? "100g" : "item";
-  return (
-    <div className={inline ? "p-4 bg-emerald-50" : "bg-amber-50 border border-stone-200 rounded-2xl p-4 mb-4"}>
-      <p className="text-xs font-medium text-stone-500 uppercase tracking-wide mb-2">{title}</p>
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Ingredient name"
-        className="w-full px-2.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-2"
-      />
-      <div className="flex gap-1.5 mb-2">
-        <button
-          type="button"
-          onClick={() => setBaseUnit("grams")}
-          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
-            baseUnit === "grams" ? "bg-stone-800 text-amber-50 border-stone-800" : "border-stone-200 text-stone-600 bg-white"
-          }`}
-        >
-          By weight/volume (grams)
-        </button>
-        <button
-          type="button"
-          onClick={() => setBaseUnit("count")}
-          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border ${
-            baseUnit === "count" ? "bg-stone-800 text-amber-50 border-stone-800" : "border-stone-200 text-stone-600 bg-white"
-          }`}
-        >
-          By item (count)
-        </button>
-      </div>
-      <p className="text-[11px] text-stone-400 mb-2">
-        {baseUnit === "grams"
-          ? "For anything measured by weight or volume — produce, flour, oil, spices. Recipes can enter it in grams or, with a conversion below, cups/tbsp/tsp too."
-          : "For discrete items with no natural weight — an egg, a can, a clove."}
-      </p>
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        <input
-          type="number"
-          value={calories}
-          onChange={(e) => setCalories(e.target.value)}
-          placeholder={`Cal/${rateSuffix}`}
-          className="px-2.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-        />
-        <input
-          type="number"
-          value={protein}
-          onChange={(e) => setProtein(e.target.value)}
-          placeholder={`Protein/${rateSuffix}`}
-          className="px-2.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-        />
-        <input
-          type="number"
-          value={fiber}
-          onChange={(e) => setFiber(e.target.value)}
-          placeholder={`Fiber/${rateSuffix}`}
-          className="px-2.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-        />
-      </div>
-      {baseUnit === "grams" && (
-        <div className="mb-3">
-          <label className="text-[10px] text-stone-400 uppercase tracking-wide">
-            Volume conversion (optional)
-          </label>
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            <select
-              value={referenceUnit}
-              onChange={(e) => setReferenceUnit(e.target.value as VolumeUnit | "")}
-              className="px-1.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
-            >
-              <option value="">No conversion</option>
-              {VOLUME_UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={gramsPerReferenceUnit}
-              onChange={(e) => setGramsPerReferenceUnit(e.target.value)}
-              placeholder={referenceUnit ? `Grams per ${referenceUnit}` : "Grams per —"}
-              disabled={!referenceUnit}
-              className="px-2.5 py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-40"
-            />
-          </div>
-        </div>
-      )}
-      <label className="flex items-center gap-1.5 text-sm text-stone-600 mb-3">
-        <input
-          type="checkbox"
-          checked={pantryStaple}
-          onChange={(e) => setPantryStaple(e.target.checked)}
-          className="rounded border-stone-300"
-        />
-        Pantry staple (skip in shopping list by default)
-      </label>
-      <div className="flex justify-end gap-2">
-        <button onClick={onCancel} className="px-4 py-2 rounded-full text-sm font-medium text-stone-600 hover:bg-stone-100">
-          Cancel
-        </button>
-        <button
-          onClick={onSubmit}
-          disabled={saving || !name.trim() || !calories}
-          className="px-4 py-2 rounded-full text-sm font-medium bg-emerald-800 text-amber-50 disabled:opacity-40"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- Cooking Mode ---------- */
-/* See components/CookingMode.tsx for the full view. */
