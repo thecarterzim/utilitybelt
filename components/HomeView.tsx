@@ -13,6 +13,7 @@ type View =
   | "browse"
   | "recipeDetail"
   | "mealPlan"
+  | "week"
   | "shoppingList"
   | "ingredientLibrary"
   | "importRecipe";
@@ -203,10 +204,10 @@ export function HomeView({
           })}
         </div>
         <button
-          onClick={() => setView("mealPlan")}
+          onClick={() => setView("week")}
           className="mt-4 text-[13.5px] font-semibold text-[#0f4a35] hover:underline"
         >
-          Go to meal plan →
+          Plan this week →
         </button>
       </div>
 
@@ -289,11 +290,11 @@ export function HomeView({
           }}
         />
         <ActionCard
-          title="Build meal plan"
-          subtitle="Plan the next 7 days"
+          title="Plan this week"
+          subtitle="Pick recipes, build the list"
           Icon={CalendarDays}
           tileColor="#b0430c"
-          onClick={() => setView("mealPlan")}
+          onClick={() => setView("week")}
         />
         <ActionCard
           title="Browse recipes"

@@ -1,4 +1,4 @@
-import type { MealSlot, VolumeUnit } from "./types";
+import type { MealSlot, VolumeUnit, WeekBucket } from "./types";
 
 export const UNITS = ["g", "oz", "kg", "lb", "ml", "l", "cup", "tbsp", "tsp", "count", "can", "unit"];
 
@@ -68,3 +68,14 @@ export const CATEGORY_INK: Record<string, string> = {
   Snack: "#46505c",
   Dessert: "#8a2b45",
 };
+
+// Display order and labels for the "This week" buckets. `prepDay` marks the
+// two buckets that make up Kristine's Thursday, which the week screen
+// summarizes separately.
+export const WEEK_BUCKETS: { key: WeekBucket; label: string; hint: string; prepDay: boolean }[] = [
+  { key: "make", label: "Kristine makes", hint: "Cooked on prep day", prepDay: true },
+  { key: "prep", label: "Kristine preps", hint: "Prepped ahead, finished later", prepDay: true },
+  { key: "dinners", label: "Other dinners", hint: "Mon, Tue, Wed…", prepDay: false },
+  { key: "lunches", label: "Lunches", hint: "", prepDay: false },
+  { key: "snacks", label: "Leighton snacks", hint: "", prepDay: false },
+];

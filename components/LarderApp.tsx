@@ -29,10 +29,12 @@ import {
   Upload,
   Sparkles,
   Copy,
+  Link as LinkIcon,
 } from "lucide-react";
 import {
   addDailyExtraAction,
   addManualShoppingItemAction,
+  addWeekItemAction,
   assignCustomMealAction,
   assignMealAction,
   clearMealAction,
@@ -43,7 +45,9 @@ import {
   getMealPlanRangeAction,
   importRecipeAction,
   moveMealSlotAction,
+  removeWeekItemAction,
   saveLibraryIngredientAction,
+  startNewWeekAction,
   setMealEatenAction,
   saveRecipeAction,
   syncShoppingListAction,
@@ -64,6 +68,7 @@ import {
 } from "@/components/MealPlanView";
 import { NutritionChips } from "@/components/NutritionChips";
 import { RecipesView } from "@/components/RecipesView";
+import { WeekView } from "@/components/WeekView";
 import {
   CATEGORIES,
   CATEGORY_STYLE,
@@ -106,6 +111,8 @@ import type {
   RecipeImportPayload,
   ShoppingItem,
   VolumeUnit,
+  WeekBucket,
+  WeekItem,
 } from "@/lib/types";
 
 type View =
@@ -114,6 +121,7 @@ type View =
   | "browse"
   | "recipeDetail"
   | "mealPlan"
+  | "week"
   | "shoppingList"
   | "ingredientLibrary"
   | "importRecipe";
@@ -154,14 +162,19 @@ export default function LarderApp({
   initialShoppingList,
   initialIngredientLibrary,
   initialDailyExtras,
+  initialWeekItems,
   initialView,
+  initialRecipeId,
 }: {
   initialRecipes: Recipe[];
   initialMealPlan: MealPlan;
   initialShoppingList: ShoppingItem[];
   initialIngredientLibrary: LibraryIngredient[];
   initialDailyExtras: DailyExtra[];
+  initialWeekItems: WeekItem[];
   initialView?: View;
+  // Deep link straight to one recipe (/recipe/<id>) — used by Trello cards.
+  initialRecipeId?: string | null;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
   const [mealPlan, setMealPlan] = useState<MealPlan>(initialMealPlan);
@@ -170,10 +183,13 @@ export default function LarderApp({
     initialIngredientLibrary
   );
   const [dailyExtras, setDailyExtras] = useState<DailyExtra[]>(initialDailyExtras);
+  const [weekItems, setWeekItems] = useState<WeekItem[]>(initialWeekItems);
+  const [confirmNewWeek, setConfirmNewWeek] = useState(false);
 
-  const [view, setView] = useState<View>(initialView ?? "home");
+  const startOnRecipe = Boolean(initialRecipeId && initialRecipes.some((r) => r.id === initialRecipeId));
+  const [view, setView] = useState<View>(startOnRecipe ? "recipeDetail" : initialView ?? "home");
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(startOnRecipe ? initialRecipeId! : null);
   const [pickerSlot, setPickerSlot] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [modifySlot, setModifySlot] = useState<{ date: string; slot: MealSlot } | null>(null);
   const [slotActionTarget, setSlotActionTarget] = useState<{ date: string; slot: MealSlot } | null>(
@@ -486,44 +502,94 @@ export default function LarderApp({
     return { ...fromMeals, calories: fromMeals.calories + extraCalories };
   }
 
+  async function addWeekItem(bucket: WeekBucket, recipeId: string) {
+    if (weekItems.some((w) => w.bucket === bucket && w.recipeId === recipeId)) return;
+    try {
+      const saved = await addWeekItemAction(bucket, recipeId);
+      setWeekItems((prev) => [...prev.filter((w) => w.id !== saved.id), saved]);
+    } catch {
+      showToast("Couldn't add that recipe — try again.");
+    }
+  }
+
+  async function removeWeekItem(id: string) {
+    const prev = weekItems;
+    setWeekItems(prev.filter((w) => w.id !== id));
+    try {
+      await removeWeekItemAction(id);
+    } catch {
+      setWeekItems(prev);
+      showToast("Couldn't remove that — try again.");
+    }
+  }
+
+  async function startNewWeek() {
+    setConfirmNewWeek(false);
+    try {
+      const list = await startNewWeekAction();
+      setWeekItems([]);
+      setShoppingList(list);
+      showToast("New week started.");
+    } catch {
+      showToast("Couldn't start a new week — try again.");
+    }
+  }
+
+  async function copyWeekLink() {
+    const url = `${window.location.origin}/week`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied — paste it into the Trello card.");
+    } catch {
+      showToast(url);
+    }
+  }
+
+  async function copyRecipeLink(recipeId: string) {
+    const url = `${window.location.origin}/recipe/${recipeId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Recipe link copied.");
+    } catch {
+      showToast(url);
+    }
+  }
+
+  // The shopping list builds from "This week" — every bucket, every recipe
+  // in it, once each. Pantry staples are skipped; flex ingredients use the
+  // recipe's own defaults since a week bucket has no per-occurrence choice.
   async function buildShoppingList() {
     const map: Record<
       string,
       { name: string; unit: string; quantity: number; recipes: Set<string> }
     > = {};
 
-    days.forEach((day) => {
-      const slots = mealPlan[day.date];
-      if (!slots) return;
-      MEAL_SLOTS.forEach((mt) => {
-        const slotValue = slots[mt];
-        const recipe = recipes.find((r) => r.id === slotValue?.recipeId);
-        if (!recipe) return;
-        const servings = parseFloat(String(recipe.servings)) || 1;
-        const flexIds = slotValue?.flexSelection;
-        (recipe.ingredients || []).forEach((ing) => {
-          if (ing.isSectionHeader) return;
-          if (!ing.name || !ing.name.trim()) return;
-          const linkedLibraryEntry = ing.libraryId
-            ? ingredientLibrary.find((l) => l.id === ing.libraryId)
-            : null;
-          if (linkedLibraryEntry?.pantryStaple) return;
-          if (ing.isFlex) {
-            const isOn = flexIds ? flexIds.includes(ing.id) : Boolean(ing.flexDefault);
-            if (!isOn) return;
-          }
-          const key = ing.name.trim().toLowerCase() + "|" + (ing.unit || "");
-          const enteredQty = parseFloat(ing.quantity) || 0;
-          // "Whole recipe" quantities are already the total to buy. "Per
-          // serving" quantities (toppings, garnishes) need scaling up by
-          // how many servings the recipe makes.
-          const qty = ing.servingMode === "perServing" ? enteredQty * servings : enteredQty;
-          if (!map[key]) {
-            map[key] = { name: ing.name.trim(), unit: ing.unit || "", quantity: 0, recipes: new Set() };
-          }
-          map[key].quantity += qty;
-          map[key].recipes.add(recipe.name);
-        });
+    const seen = new Set<string>();
+    weekItems.forEach((item) => {
+      if (seen.has(item.recipeId)) return;
+      seen.add(item.recipeId);
+      const recipe = recipes.find((r) => r.id === item.recipeId);
+      if (!recipe) return;
+      const servings = parseFloat(String(recipe.servings)) || 1;
+      (recipe.ingredients || []).forEach((ing) => {
+        if (ing.isSectionHeader) return;
+        if (!ing.name || !ing.name.trim()) return;
+        const linkedLibraryEntry = ing.libraryId
+          ? ingredientLibrary.find((l) => l.id === ing.libraryId)
+          : null;
+        if (linkedLibraryEntry?.pantryStaple) return;
+        if (ing.isFlex && !ing.flexDefault) return;
+        const key = ing.name.trim().toLowerCase() + "|" + (ing.unit || "");
+        const enteredQty = parseFloat(ing.quantity) || 0;
+        // "Whole recipe" quantities are already the total to buy. "Per
+        // serving" quantities (toppings, garnishes) need scaling up by
+        // how many servings the recipe makes.
+        const qty = ing.servingMode === "perServing" ? enteredQty * servings : enteredQty;
+        if (!map[key]) {
+          map[key] = { name: ing.name.trim(), unit: ing.unit || "", quantity: 0, recipes: new Set() };
+        }
+        map[key].quantity += qty;
+        map[key].recipes.add(recipe.name);
       });
     });
 
@@ -542,7 +608,7 @@ export default function LarderApp({
       const saved = await syncShoppingListAction(list);
       setShoppingList(saved);
       setView("shoppingList");
-      showToast(saved.length ? "Shopping list ready." : "No meals planned yet — nothing to shop for.");
+      showToast(saved.length ? "Shopping list ready." : "Nothing in this week yet — add some recipes first.");
     } catch {
       showToast("Couldn't build the shopping list — try again.");
     }
@@ -783,6 +849,7 @@ export default function LarderApp({
                 }}
                 onDelete={() => setConfirmDeleteId(recipe.id)}
                 onPrint={() => showToast("4×6 label export is coming in a future version.")}
+                onCopyLink={() => copyRecipeLink(recipe.id)}
                 onStartCooking={(multiplier) =>
                   setCookingSession({
                     recipe,
@@ -816,6 +883,26 @@ export default function LarderApp({
           />
         )}
 
+        {view === "week" && (
+          <WeekView
+            recipes={recipes}
+            weekItems={weekItems}
+            shoppingListCount={shoppingList.length}
+            onAdd={addWeekItem}
+            onRemove={removeWeekItem}
+            onOpenRecipe={(id) => {
+              setSelectedRecipeId(id);
+              setView("recipeDetail");
+            }}
+            onStartCooking={(recipe) =>
+              setCookingSession({ recipe, flexIds: defaultFlexIds(recipe), servingMultiplier: 1 })
+            }
+            onBuildList={buildShoppingList}
+            onStartNewWeek={() => setConfirmNewWeek(true)}
+            onCopyLink={copyWeekLink}
+          />
+        )}
+
         {view === "shoppingList" && (
           <ShoppingListView
             list={shoppingList}
@@ -826,6 +913,15 @@ export default function LarderApp({
           />
         )}
       </main>
+
+      {confirmNewWeek && (
+        <ConfirmModal
+          message="Start a new week? This clears every bucket and the recipe items on the shopping list. Items you added by hand stay."
+          confirmLabel="Start new week"
+          onCancel={() => setConfirmNewWeek(false)}
+          onConfirm={startNewWeek}
+        />
+      )}
 
       {pickerSlot && (
         <RecipePickerModal
@@ -970,7 +1066,7 @@ function NavItems({
   const items: { key: View; label: string; Icon: typeof HomeIcon }[] = [
     { key: "home", label: "Home", Icon: HomeIcon },
     { key: "browse", label: "Recipes", Icon: BookOpen },
-    { key: "mealPlan", label: "Meal Plan", Icon: CalendarDays },
+    { key: "week", label: "This Week", Icon: CalendarDays },
     { key: "shoppingList", label: "Shopping", Icon: ShoppingCart },
   ];
   const isRow = orientation === "row";
@@ -1675,6 +1771,7 @@ function RecipeDetail({
   onEdit,
   onDelete,
   onPrint,
+  onCopyLink,
   onStartCooking,
 }: {
   recipe: Recipe;
@@ -1682,6 +1779,7 @@ function RecipeDetail({
   onEdit: () => void;
   onDelete: () => void;
   onPrint: () => void;
+  onCopyLink: () => void;
   onStartCooking: (servingMultiplier: number) => void;
 }) {
   const [multiplier, setMultiplier] = useState(1);
@@ -1749,6 +1847,13 @@ function RecipeDetail({
               className="flex items-center gap-1.5 bg-amber-700 text-amber-50 text-sm font-medium px-3.5 py-2 rounded-full"
             >
               <ChefHat size={15} /> Start cooking
+            </button>
+            <button
+              onClick={onCopyLink}
+              title="Copy a link to this recipe"
+              className="w-9 h-9 flex items-center justify-center rounded-full border border-stone-200 text-stone-500 hover:bg-stone-100"
+            >
+              <LinkIcon size={15} />
             </button>
             <button
               onClick={onPrint}

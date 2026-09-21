@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import type { DailyExtra, LibraryIngredient, MealPlan, Recipe, ShoppingItem } from "@/lib/types";
+import type { DailyExtra, LibraryIngredient, MealPlan, Recipe, ShoppingItem, WeekItem } from "@/lib/types";
 
 // Meal-plan "today" is computed on the client from the browser's clock, but
 // we fetch server-side before we know the client's timezone. Pad the range
@@ -20,12 +20,13 @@ export async function getAppData() {
   const supabase = createAdminClient();
   const { start, end } = paddedRange();
 
-  const [recipesRes, mealPlanRes, shoppingRes, ingredientsRes, extrasRes] = await Promise.all([
+  const [recipesRes, mealPlanRes, shoppingRes, ingredientsRes, extrasRes, weekRes] = await Promise.all([
     supabase.from("recipes").select("*").order("name"),
     supabase.from("meal_plan").select("*").gte("date", start).lte("date", end),
     supabase.from("shopping_list_items").select("*").order("name"),
     supabase.from("ingredients").select("*").order("name"),
     supabase.from("daily_extras").select("*").gte("date", start).lte("date", end),
+    supabase.from("week_items").select("*").order("position").order("created_at"),
   ]);
 
   const initialRecipes: Recipe[] = (recipesRes.data || []).map((r) => ({
@@ -79,11 +80,18 @@ export async function getAppData() {
     calories: Number(row.calories) || 0,
   }));
 
+  const initialWeekItems: WeekItem[] = (weekRes.data || []).map((row) => ({
+    id: row.id,
+    bucket: row.bucket,
+    recipeId: row.recipe_id,
+  }));
+
   return {
     initialRecipes,
     initialMealPlan,
     initialShoppingList,
     initialIngredientLibrary,
     initialDailyExtras,
+    initialWeekItems,
   };
 }

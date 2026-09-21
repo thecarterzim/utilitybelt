@@ -172,3 +172,18 @@ where jsonb_array_length(ingredients) > 0
 -- from, and what gets done ahead on prep day. Both optional.
 alter table recipes add column if not exists source_url text;
 alter table recipes add column if not exists prep_steps text not null default '';
+
+-- "This week": recipes chosen for the current week, grouped into buckets
+-- (what Kristine makes on prep day, what she preps ahead, other dinners,
+-- lunches, snacks) instead of calendar days. One row per (bucket, recipe);
+-- "Start new week" clears the table. The shopping list builds from these.
+create table if not exists week_items (
+  id uuid primary key default gen_random_uuid(),
+  bucket text not null check (bucket in ('make', 'prep', 'dinners', 'lunches', 'snacks')),
+  recipe_id uuid not null references recipes(id) on delete cascade,
+  position integer not null default 0,
+  created_at timestamptz not null default now(),
+  unique (bucket, recipe_id)
+);
+alter table week_items enable row level security;
+grant all on public.week_items to service_role;

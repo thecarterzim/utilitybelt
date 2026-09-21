@@ -13,6 +13,8 @@ import type {
   RecipeImportPayload,
   ShoppingItem,
   VolumeUnit,
+  WeekBucket,
+  WeekItem,
 } from "@/lib/types";
 
 type RecipeRow = {
@@ -516,4 +518,36 @@ export async function deleteDailyExtraAction(id: string): Promise<void> {
   const supabase = createAdminClient();
   const { error } = await supabase.from("daily_extras").delete().eq("id", id);
   if (error) throw new Error(error.message);
+}
+
+// ---------- "This week" buckets ----------
+
+export async function addWeekItemAction(bucket: WeekBucket, recipeId: string): Promise<WeekItem> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("week_items")
+    .upsert({ bucket, recipe_id: recipeId }, { onConflict: "bucket,recipe_id" })
+    .select()
+    .single();
+  if (error || !data) throw new Error(error?.message || "Couldn't add that recipe to the week.");
+  return { id: data.id, bucket: data.bucket, recipeId: data.recipe_id };
+}
+
+export async function removeWeekItemAction(id: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("week_items").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+// Clears the week's buckets and the recipe-derived shopping items. Items
+// added by hand ("manual") are left alone — same rule as a list rebuild.
+export async function startNewWeekAction(): Promise<ShoppingItem[]> {
+  const supabase = createAdminClient();
+  const { error: weekError } = await supabase.from("week_items").delete().not("id", "is", null);
+  if (weekError) throw new Error(weekError.message);
+  const { error: listError } = await supabase.from("shopping_list_items").delete().eq("source", "recipe");
+  if (listError) throw new Error(listError.message);
+  const { data, error } = await supabase.from("shopping_list_items").select("*").order("name");
+  if (error) throw new Error(error.message);
+  return (data || []).map(rowToShoppingItem);
 }

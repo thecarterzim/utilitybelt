@@ -120,6 +120,17 @@ export type MealSlotValue = {
 
 export type DayPlan = Partial<Record<MealSlot, MealSlotValue | null>>;
 
+// "This week" buckets — the week is planned by role, not by day. "make" is
+// what Kristine cooks on prep day, "prep" is what she preps ahead for
+// Carter to finish, the rest are just groupings for the shopping list.
+export type WeekBucket = "make" | "prep" | "dinners" | "lunches" | "snacks";
+
+export type WeekItem = {
+  id: string;
+  bucket: WeekBucket;
+  recipeId: string;
+};
+
 export type MealPlan = Record<string, DayPlan>;
 
 export type ShoppingItem = {
