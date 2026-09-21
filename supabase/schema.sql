@@ -167,3 +167,8 @@ where jsonb_array_length(ingredients) > 0
     select 1 from jsonb_array_elements(ingredients) as elem
     where not (elem ? 'servingMode')
   );
+
+-- Per-recipe notes for the weekly prep hand-off: where the recipe came
+-- from, and what gets done ahead on prep day. Both optional.
+alter table recipes add column if not exists source_url text;
+alter table recipes add column if not exists prep_steps text not null default '';

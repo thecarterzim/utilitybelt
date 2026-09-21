@@ -136,6 +136,8 @@ export function emptyRecipe(): Recipe {
     servings: 4,
     ingredients: [emptyIngredient()],
     instructions: "",
+    sourceUrl: null,
+    prepSteps: "",
   };
 }
 

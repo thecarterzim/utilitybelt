@@ -22,7 +22,22 @@ type RecipeRow = {
   servings: number;
   ingredients: Recipe["ingredients"];
   instructions: string;
+  source_url: string | null;
+  prep_steps: string | null;
 };
+
+function rowToRecipe(row: RecipeRow): Recipe {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    servings: row.servings,
+    ingredients: row.ingredients,
+    instructions: row.instructions,
+    sourceUrl: row.source_url ?? null,
+    prepSteps: row.prep_steps ?? "",
+  };
+}
 
 function rowToShoppingItem(row: {
   id: string;
@@ -50,6 +65,8 @@ export async function saveRecipeAction(recipe: Recipe): Promise<Recipe> {
     servings: Number(recipe.servings) || 1,
     ingredients: recipe.ingredients,
     instructions: recipe.instructions,
+    source_url: recipe.sourceUrl?.trim() || null,
+    prep_steps: recipe.prepSteps ?? "",
   };
 
   const query = recipe.id
@@ -59,14 +76,7 @@ export async function saveRecipeAction(recipe: Recipe): Promise<Recipe> {
   const { data, error } = await query.select().single<RecipeRow>();
   if (error || !data) throw new Error(error?.message || "Failed to save recipe.");
 
-  return {
-    id: data.id,
-    name: data.name,
-    category: data.category,
-    servings: data.servings,
-    ingredients: data.ingredients,
-    instructions: data.instructions,
-  };
+  return rowToRecipe(data);
 }
 
 export async function deleteRecipeAction(id: string): Promise<void> {
@@ -464,6 +474,8 @@ export async function importRecipeAction(
     servings: payload.recipe.servings,
     instructions: payload.recipe.instructions,
     ingredients,
+    sourceUrl: payload.recipe.sourceUrl ?? null,
+    prepSteps: payload.recipe.prepSteps ?? "",
   });
 
   return { recipe, newIngredients: createdIngredients };

@@ -1070,10 +1070,43 @@ function validateImportPayload(
         servings: (r.servings as number | string) ?? 4,
         instructions: typeof r.instructions === "string" ? r.instructions : "",
         ingredients: r.ingredients as ImportIngredient[],
+        sourceUrl: typeof r.sourceUrl === "string" ? r.sourceUrl : null,
+        prepSteps: typeof r.prepSteps === "string" ? r.prepSteps : "",
       },
       newIngredients: newIngredients as NewLibraryIngredientInput[],
     },
   };
+}
+
+type SmartImage = { mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; data: string; name: string };
+
+// Phone photos are 3–5 MB each; the parser reads text off them just as
+// well at 1600px, so shrink client-side before shipping base64 over the
+// wire. Falls back to the original bytes when the browser can't decode
+// the file (rare — a format canvas doesn't support).
+async function fileToSmartImage(file: File): Promise<SmartImage> {
+  const MAX_EDGE = 1600;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no canvas");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    return { mediaType: "image/jpeg", data: dataUrl.split(",")[1], name: file.name };
+  } catch {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+    const mediaType = allowed.find((t) => t === file.type);
+    if (!mediaType) throw new Error(`Couldn't read ${file.name} — try a JPEG or PNG screenshot.`);
+    const buf = await file.arrayBuffer();
+    let binary = "";
+    new Uint8Array(buf).forEach((b) => (binary += String.fromCharCode(b)));
+    return { mediaType, data: btoa(binary), name: file.name };
+  }
 }
 
 function ImportRecipeView({
@@ -1085,12 +1118,74 @@ function ImportRecipeView({
   onDone: (recipeId: string) => void;
   onCancel: () => void;
 }) {
-  const [inputMode, setInputMode] = useState<"upload" | "paste">("upload");
+  const [inputMode, setInputMode] = useState<"smart" | "upload" | "paste">("smart");
   const [pasteText, setPasteText] = useState("");
   const [payload, setPayload] = useState<RecipeImportPayload | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // "Smart" mode: a link, pasted text, and/or photos go to /api/import/parse,
+  // which fetches the page (if any) and has Claude turn it into a payload.
+  const [smartUrl, setSmartUrl] = useState("");
+  const [smartText, setSmartText] = useState("");
+  const [smartImages, setSmartImages] = useState<SmartImage[]>([]);
+  const [parsing, setParsing] = useState(false);
+  const [parseNotes, setParseNotes] = useState<string | null>(null);
+  const [needsScreenshot, setNeedsScreenshot] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePhotos(files: FileList) {
+    setParseError(null);
+    try {
+      const next = await Promise.all(Array.from(files).slice(0, 6).map(fileToSmartImage));
+      setSmartImages((prev) => [...prev, ...next].slice(0, 6));
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "Couldn't read that photo.");
+    }
+  }
+
+  async function runSmartImport() {
+    if (parsing) return;
+    setParseError(null);
+    setNeedsScreenshot(false);
+    setParsing(true);
+    try {
+      const res = await fetch("/api/import/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: smartUrl.trim() || undefined,
+          text: smartText.trim() || undefined,
+          images: smartImages.map(({ mediaType, data }) => ({ mediaType, data })),
+        }),
+      });
+      const json = (await res.json()) as {
+        payload?: RecipeImportPayload;
+        notes?: string;
+        error?: string;
+        needsScreenshot?: boolean;
+      };
+      if (!res.ok || !json.payload) {
+        setParseError(json.error ?? "Something went wrong reading that recipe.");
+        setNeedsScreenshot(Boolean(json.needsScreenshot));
+        return;
+      }
+      const validated = validateImportPayload(json.payload);
+      if (!validated.ok) {
+        setParseError(validated.error);
+        return;
+      }
+      setParseNotes(json.notes?.trim() || null);
+      setPayload(validated.payload);
+    } catch {
+      setParseError("Couldn't reach the server. Is the app still running?");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  const canRunSmart = Boolean(smartUrl.trim() || smartText.trim() || smartImages.length > 0);
 
   function parseAndSetPayload(text: string) {
     setParseError(null);
@@ -1164,7 +1259,20 @@ function ImportRecipeView({
 
       {!payload ? (
         <div className="bg-amber-50 border border-dashed border-stone-300 rounded-2xl p-8">
-          <div className="flex gap-1.5 justify-center mb-6">
+          <div className="flex gap-1.5 justify-center mb-6 flex-wrap">
+            <button
+              onClick={() => {
+                setInputMode("smart");
+                setParseError(null);
+              }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+                inputMode === "smart"
+                  ? "bg-stone-800 text-amber-50 border-stone-800"
+                  : "border-stone-200 text-stone-600"
+              }`}
+            >
+              Link, text or photo
+            </button>
             <button
               onClick={() => {
                 setInputMode("upload");
@@ -1193,7 +1301,90 @@ function ImportRecipeView({
             </button>
           </div>
 
-          {inputMode === "upload" ? (
+          {inputMode === "smart" ? (
+            <div>
+              <p className="text-stone-600 text-sm mb-1 text-center">Drop in a recipe from anywhere</p>
+              <p className="text-stone-400 text-xs mb-5 text-center">
+                A link (Instagram or any recipe site), pasted text, a screenshot — or any mix.
+              </p>
+
+              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Link</label>
+              <input
+                type="url"
+                inputMode="url"
+                value={smartUrl}
+                onChange={(e) => setSmartUrl(e.target.value)}
+                placeholder="https://www.instagram.com/reel/…"
+                disabled={parsing}
+                className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-4"
+              />
+
+              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Text</label>
+              <textarea
+                value={smartText}
+                onChange={(e) => setSmartText(e.target.value)}
+                placeholder="Paste a caption or a recipe here (optional)…"
+                rows={4}
+                disabled={parsing}
+                className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 mb-4"
+              />
+
+              <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Photos</label>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files?.length) handlePhotos(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <div className="mt-1.5 sm:mt-1 flex flex-wrap items-center gap-2 mb-5">
+                {smartImages.map((img, idx) => (
+                  <div key={idx} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`data:${img.mediaType};base64,${img.data}`}
+                      alt={img.name}
+                      className="h-16 w-16 object-cover rounded-lg border border-stone-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSmartImages((prev) => prev.filter((_, i) => i !== idx))}
+                      disabled={parsing}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-stone-800 text-amber-50 flex items-center justify-center"
+                      title="Remove photo"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={parsing || smartImages.length >= 6}
+                  className="h-16 px-4 rounded-lg border border-dashed border-stone-300 text-sm text-stone-600 flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  <Plus size={14} /> {smartImages.length === 0 ? "Add screenshot" : "Add another"}
+                </button>
+              </div>
+
+              <div className="text-center">
+                <button
+                  onClick={runSmartImport}
+                  disabled={!canRunSmart || parsing}
+                  className="inline-flex items-center gap-1.5 bg-emerald-800 text-amber-50 text-sm font-medium px-5 py-2.5 rounded-full disabled:opacity-40"
+                >
+                  <Sparkles size={15} /> {parsing ? "Reading the recipe…" : "Create recipe"}
+                </button>
+                {parsing && (
+                  <p className="text-stone-400 text-xs mt-3">This usually takes 20–40 seconds.</p>
+                )}
+              </div>
+            </div>
+          ) : inputMode === "upload" ? (
             <div className="text-center">
               <Upload size={28} className="mx-auto text-stone-400 mb-3" />
               <p className="text-stone-600 text-sm mb-1">Upload a recipe .json file</p>
@@ -1243,7 +1434,19 @@ function ImportRecipeView({
             </div>
           )}
 
-          {parseError && <p className="text-orange-700 text-sm mt-4 text-center">{parseError}</p>}
+          {parseError && (
+            <div className="mt-4 text-center">
+              <p className="text-orange-700 text-sm">{parseError}</p>
+              {needsScreenshot && (
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-emerald-800 font-medium hover:underline"
+                >
+                  <Plus size={14} /> Add a screenshot
+                </button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-5">
@@ -1256,7 +1459,27 @@ function ImportRecipeView({
               {payload.recipe.category}
             </span>
             <h2 className="font-display text-xl text-stone-900">{payload.recipe.name}</h2>
-            <p className="text-stone-500 text-sm mt-1">{payload.recipe.servings} servings</p>
+            <p className="text-stone-500 text-sm mt-1">
+              {payload.recipe.servings} servings
+              {payload.recipe.sourceUrl && (
+                <>
+                  {" · "}
+                  <a
+                    href={payload.recipe.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-800 underline underline-offset-2"
+                  >
+                    {sourceLabel(payload.recipe.sourceUrl)}
+                  </a>
+                </>
+              )}
+            </p>
+            {parseNotes && (
+              <p className="mt-3 text-sm text-amber-900 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
+                <span className="font-medium">Worth a check:</span> {parseNotes}
+              </p>
+            )}
           </div>
 
           {payload.newIngredients.length > 0 && (
@@ -1273,14 +1496,16 @@ function ImportRecipeView({
                   >
                     <div>
                       <span className="font-medium">{n.name}</span>
-                      <span className="text-xs text-stone-500 ml-2">
-                        {n.baseUnit === "grams"
-                          ? `${Math.round(n.caloriesPerBaseUnit * 100 * 100) / 100} cal/100g`
-                          : `${n.caloriesPerBaseUnit} cal/item`}
-                        {n.referenceUnit && n.gramsPerReferenceUnit
-                          ? ` · ${n.gramsPerReferenceUnit}g/${n.referenceUnit}`
-                          : ""}
-                      </span>
+                      {n.caloriesPerBaseUnit > 0 && (
+                        <span className="text-xs text-stone-500 ml-2">
+                          {n.baseUnit === "grams"
+                            ? `${Math.round(n.caloriesPerBaseUnit * 100 * 100) / 100} cal/100g`
+                            : `${n.caloriesPerBaseUnit} cal/item`}
+                          {n.referenceUnit && n.gramsPerReferenceUnit
+                            ? ` · ${n.gramsPerReferenceUnit}g/${n.referenceUnit}`
+                            : ""}
+                        </span>
+                      )}
                     </div>
                     <label className="flex items-center gap-1.5 text-xs text-stone-600 flex-shrink-0">
                       <input
@@ -1400,11 +1625,29 @@ function ImportRecipeView({
             )}
           </div>
 
+          {payload.recipe.prepSteps?.trim() && (
+            <div className="bg-amber-50 border border-stone-200 rounded-2xl p-5">
+              <h3 className="font-display text-lg text-stone-900 mb-1">Prep ahead</h3>
+              <p className="text-[11px] text-stone-400 mb-3">
+                Suggested steps a helper can do a day or two early. Edit these on the recipe after importing.
+              </p>
+              <ol className="space-y-1.5">
+                {parseInstructionSteps(payload.recipe.prepSteps).map((step, idx) => (
+                  <li key={idx} className="flex gap-2 text-sm">
+                    <span className="font-display text-stone-400 flex-shrink-0 w-4">{idx + 1}</span>
+                    <span className="text-stone-700">{step.text}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               onClick={() => {
                 setPayload(null);
                 setPasteText("");
+                setParseNotes(null);
               }}
               className="px-4 py-2 rounded-full text-sm font-medium text-stone-600 hover:bg-stone-100"
             >
@@ -1446,6 +1689,7 @@ function RecipeDetail({
   const { perServing: proteinPerServing } = recipeProtein(recipe);
   const { perServing: fiberPerServing } = recipeFiber(recipe);
   const steps = parseInstructionSteps(recipe.instructions);
+  const prepSteps = parseInstructionSteps(recipe.prepSteps ?? "");
   const baseServings = parseFloat(String(recipe.servings)) || 0;
   const scaledServings = Math.round(baseServings * multiplier * 10) / 10;
   return (
@@ -1469,6 +1713,17 @@ function RecipeDetail({
                 nutrition={{ calories: perServing, protein: proteinPerServing, fiber: fiberPerServing }}
                 size="sm"
               />
+              {recipe.sourceUrl && (
+                <a
+                  href={recipe.sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-emerald-800 underline underline-offset-2 truncate max-w-[16rem]"
+                  title={recipe.sourceUrl}
+                >
+                  {sourceLabel(recipe.sourceUrl)}
+                </a>
+              )}
             </div>
           </div>
           <div className="flex gap-2 items-center flex-wrap">
@@ -1600,11 +1855,35 @@ function RecipeDetail({
                 ))}
               </ol>
             )}
+
+            {prepSteps.length > 0 && (
+              <div className="mt-6 pt-5 border-t border-stone-200">
+                <h3 className="font-display text-base text-stone-900 mb-2">Prep ahead</h3>
+                <ol className="space-y-1.5">
+                  {prepSteps.map((step, idx) => (
+                    <li key={idx} className="flex gap-2 text-sm">
+                      <span className="font-display text-stone-400 flex-shrink-0 w-4">{idx + 1}</span>
+                      <span className="text-stone-700">{step.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// "jenneatsgoood.com" / "instagram.com" — the hostname is all a recipe card
+// needs to say about where it came from; the full URL is on the link itself.
+function sourceLabel(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }
 
 /* ---------- Recipe Form ---------- */
@@ -1739,6 +2018,17 @@ function RecipeForm({
               className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
           </div>
+          <div className="sm:col-span-2">
+            <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Source link</label>
+            <input
+              type="url"
+              inputMode="url"
+              value={recipe.sourceUrl ?? ""}
+              onChange={(e) => updateField("sourceUrl", e.target.value)}
+              placeholder="https://… (website or Instagram post, optional)"
+              className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+            />
+          </div>
         </div>
 
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -1842,6 +2132,20 @@ function RecipeForm({
           tag it with an ingredient section above — used by Cooking Mode to jump to the right
           ingredients.
         </p>
+
+        <div className="mt-5">
+          <label className="text-sm sm:text-xs font-medium text-stone-500 uppercase tracking-wide">Prep ahead</label>
+          <textarea
+            value={recipe.prepSteps ?? ""}
+            onChange={(e) => updateField("prepSteps", e.target.value)}
+            rows={4}
+            placeholder="What gets done on prep day, one step per line…"
+            className="mt-1.5 sm:mt-1 w-full px-3.5 py-3 sm:px-3 sm:py-2 rounded-lg border border-stone-200 bg-white text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700"
+          />
+          <p className="text-[11px] text-stone-400 mt-1.5">
+            Shows up in the weekly prep guide. Leave blank if it&apos;s all cooked day-of.
+          </p>
+        </div>
 
         <div className="flex justify-end gap-2 mt-6">
           <button onClick={onCancel} className="px-5 py-3 sm:px-4 sm:py-2 rounded-full text-base sm:text-sm font-medium text-stone-600 hover:bg-stone-100">

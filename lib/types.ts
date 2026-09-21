@@ -88,6 +88,11 @@ export type Recipe = {
   servings: number | string;
   ingredients: Ingredient[];
   instructions: string;
+  // Where the recipe came from (a website or Instagram post), if anywhere.
+  sourceUrl?: string | null;
+  // What gets done ahead of time on prep day (Thursday) — one step per line,
+  // same convention as `instructions`. Blank means "nothing to prep ahead".
+  prepSteps?: string;
 };
 
 // A one-off meal typed directly into a slot — never saved to the recipes
@@ -175,6 +180,8 @@ export type RecipeImportPayload = {
     servings: number | string;
     instructions: string;
     ingredients: ImportIngredient[];
+    sourceUrl?: string | null;
+    prepSteps?: string;
   };
   newIngredients: NewLibraryIngredientInput[];
 };

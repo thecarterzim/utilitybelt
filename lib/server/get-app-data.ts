@@ -35,6 +35,8 @@ export async function getAppData() {
     servings: r.servings,
     ingredients: r.ingredients,
     instructions: r.instructions,
+    sourceUrl: r.source_url ?? null,
+    prepSteps: r.prep_steps ?? "",
   }));
 
   const initialMealPlan: MealPlan = {};
