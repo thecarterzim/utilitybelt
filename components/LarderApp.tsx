@@ -49,12 +49,10 @@ import { WeekView } from "@/components/WeekView";
 import {
   CATEGORIES,
   CATEGORY_STYLE,
-  COUNT_UNITS,
   UNITS,
 } from "@/lib/constants";
 import {
   defaultFlexIds,
-  defaultUnitForLibraryIngredient,
   emptyIngredient,
   emptyRecipe,
   emptySectionHeader,
@@ -66,13 +64,11 @@ import {
 import type {
   ImportIngredient,
   Ingredient,
-  IngredientBaseUnit,
   LibraryIngredient,
   NewLibraryIngredientInput,
   Recipe,
   RecipeImportPayload,
   ShoppingItem,
-  VolumeUnit,
   WeekBucket,
   WeekItem,
 } from "@/lib/types";
@@ -89,12 +85,6 @@ type View =
 
 type LibraryIngredientInput = {
   name: string;
-  baseUnit: IngredientBaseUnit;
-  caloriesPerBaseUnit: number;
-  proteinPerBaseUnit: number;
-  fiberPerBaseUnit: number;
-  referenceUnit?: VolumeUnit | null;
-  gramsPerReferenceUnit?: number | null;
   pantryStaple: boolean;
 };
 
@@ -333,7 +323,6 @@ export default function LarderApp({
       seen.add(item.recipeId);
       const recipe = recipes.find((r) => r.id === item.recipeId);
       if (!recipe) return;
-      const servings = parseFloat(String(recipe.servings)) || 1;
       (recipe.ingredients || []).forEach((ing) => {
         if (ing.isSectionHeader) return;
         if (!ing.name || !ing.name.trim()) return;
@@ -343,11 +332,7 @@ export default function LarderApp({
         if (linkedLibraryEntry?.pantryStaple) return;
         if (ing.isFlex && !ing.flexDefault) return;
         const key = ing.name.trim().toLowerCase() + "|" + (ing.unit || "");
-        const enteredQty = parseFloat(ing.quantity) || 0;
-        // "Whole recipe" quantities are already the total to buy. "Per
-        // serving" quantities (toppings, garnishes) need scaling up by
-        // how many servings the recipe makes.
-        const qty = ing.servingMode === "perServing" ? enteredQty * servings : enteredQty;
+        const qty = parseFloat(ing.quantity) || 0;
         if (!map[key]) {
           map[key] = { name: ing.name.trim(), unit: ing.unit || "", quantity: 0, recipes: new Set() };
         }
@@ -1099,19 +1084,7 @@ function ImportRecipeView({
                     key={n.ref}
                     className="text-sm text-stone-700 flex items-center justify-between gap-2 bg-white/60 rounded-lg px-3 py-2"
                   >
-                    <div>
-                      <span className="font-medium">{n.name}</span>
-                      {n.caloriesPerBaseUnit > 0 && (
-                        <span className="text-xs text-stone-500 ml-2">
-                          {n.baseUnit === "grams"
-                            ? `${Math.round(n.caloriesPerBaseUnit * 100 * 100) / 100} cal/100g`
-                            : `${n.caloriesPerBaseUnit} cal/item`}
-                          {n.referenceUnit && n.gramsPerReferenceUnit
-                            ? ` · ${n.gramsPerReferenceUnit}g/${n.referenceUnit}`
-                            : ""}
-                        </span>
-                      )}
-                    </div>
+                    <span className="font-medium">{n.name}</span>
                     <label className="flex items-center gap-1.5 text-xs text-stone-600 flex-shrink-0">
                       <input
                         type="checkbox"
@@ -1635,7 +1608,7 @@ function RecipeForm({
 
         <p className="text-[11px] text-stone-400 mb-2 flex items-center gap-1">
           <Shuffle size={10} /> on a row marks it flexible — a swappable option grouped with
-          whatever section it's in, instead of always fixed.
+          whatever section it&apos;s in, instead of always fixed.
         </p>
 
         <div className="space-y-2 mb-3">
@@ -1811,7 +1784,6 @@ function IngredientRow({
   function link(lib: LibraryIngredient) {
     onChange("name", lib.name);
     onChange("libraryId", lib.id);
-    if (!ingredient.unit) onChange("unit", defaultUnitForLibraryIngredient(lib));
   }
 
   function selectSuggestion(lib: LibraryIngredient) {
@@ -1846,12 +1818,6 @@ function IngredientRow({
     setSaving(true);
     const saved = await onSaveNewLibraryIngredient({
       name: trimmedName,
-      baseUnit: COUNT_UNITS.includes(ingredient.unit) ? "count" : "grams",
-      caloriesPerBaseUnit: 0,
-      proteinPerBaseUnit: 0,
-      fiberPerBaseUnit: 0,
-      referenceUnit: null,
-      gramsPerReferenceUnit: null,
       pantryStaple: promptPantryStaple,
     });
     setSaving(false);
@@ -2163,15 +2129,9 @@ function IngredientLibraryView({
     setEditingId(null);
   }
 
-  function inputFor(existing: LibraryIngredient | null): LibraryIngredientInput {
+  function inputFor(): LibraryIngredientInput {
     return {
       name: formName.trim(),
-      baseUnit: existing?.baseUnit ?? "grams",
-      caloriesPerBaseUnit: existing?.caloriesPerBaseUnit ?? 0,
-      proteinPerBaseUnit: existing?.proteinPerBaseUnit ?? 0,
-      fiberPerBaseUnit: existing?.fiberPerBaseUnit ?? 0,
-      referenceUnit: existing?.referenceUnit ?? null,
-      gramsPerReferenceUnit: existing?.gramsPerReferenceUnit ?? null,
       pantryStaple: formPantryStaple,
     };
   }
@@ -2179,10 +2139,9 @@ function IngredientLibraryView({
   async function submitForm() {
     if (!formName.trim()) return;
     setSaving(true);
-    const existing = editingId ? library.find((l) => l.id === editingId) ?? null : null;
     const result = editingId
-      ? await onUpdate(editingId, inputFor(existing))
-      : await onAdd(inputFor(null));
+      ? await onUpdate(editingId, inputFor())
+      : await onAdd(inputFor());
     setSaving(false);
     if (result) cancelForm();
   }
@@ -2191,12 +2150,6 @@ function IngredientLibraryView({
   async function togglePantry(ing: LibraryIngredient) {
     await onUpdate(ing.id, {
       name: ing.name,
-      baseUnit: ing.baseUnit,
-      caloriesPerBaseUnit: ing.caloriesPerBaseUnit,
-      proteinPerBaseUnit: ing.proteinPerBaseUnit,
-      fiberPerBaseUnit: ing.fiberPerBaseUnit,
-      referenceUnit: ing.referenceUnit ?? null,
-      gramsPerReferenceUnit: ing.gramsPerReferenceUnit ?? null,
       pantryStaple: !ing.pantryStaple,
     });
   }

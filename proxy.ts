@@ -3,18 +3,15 @@ import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, isValidAuthToken, safeNextPath } from "@/lib/site-auth";
 
 // Gates the entire site behind one shared password (see lib/site-auth.ts).
-// /login, /api/login, and /api/ingredients-feed are the only paths that
-// must stay reachable without a valid cookie — the first two because
-// there's no cookie yet to check, the feed because it's meant to be
-// fetched by the recipe-import Claude Skill, which can't click through a
-// password form (it has its own, separate token check — see that route).
+// /login and /api/login are the only paths that must stay reachable
+// without a valid cookie, since there's no cookie yet to check.
 // Everything else, including /list and Server Function POSTs (which
 // Next.js routes to the page they were called from, not a separate path),
 // gets redirected to the login form.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/ingredients-feed") {
+  if (pathname === "/login" || pathname === "/api/login") {
     return NextResponse.next();
   }
 

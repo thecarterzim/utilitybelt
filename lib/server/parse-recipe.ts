@@ -1,12 +1,10 @@
 // Turns recipe text and/or photos into the app's Import Recipe payload by
 // asking Claude to extract it, matching ingredients against the library.
-// Macros are deliberately left at zero: this household uses the app for
-// shopping and prep, not calorie tracking (see scripts/seed-recipes.mjs).
 
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { CATEGORIES, COUNT_UNITS, UNITS } from "@/lib/constants";
+import { CATEGORIES, UNITS } from "@/lib/constants";
 import { generateId } from "@/lib/helpers";
 import type {
   ImportIngredient,
@@ -61,7 +59,7 @@ type RecipeDraftT = z.infer<typeof RecipeDraft>;
 
 function systemPrompt(library: LibraryIngredient[]): string {
   const libraryLines = library
-    .map((l) => `${l.id} | ${l.name} | ${l.baseUnit}${l.pantryStaple ? " | pantry" : ""}`)
+    .map((l) => `${l.id} | ${l.name}${l.pantryStaple ? " | pantry" : ""}`)
     .join("\n");
 
   return `You convert a recipe (from a website, an Instagram caption, a photo of a recipe, or pasted text) into structured data for a home recipe app. Extract only what the source actually says; never invent ingredients or quantities.
@@ -82,7 +80,7 @@ servings: an integer; the lower bound of a range; 4 if unstated. category: one o
 
 notes: one or two short sentences flagging anything the person should double-check (an illegible quantity, a guessed serving count, an ingredient that might be a duplicate of a library item). Empty string if nothing to flag.
 
-Ingredient library (id | name | base unit | pantry):
+Ingredient library (id | name | pantry):
 ${libraryLines || "(empty)"}`;
 }
 
@@ -102,10 +100,6 @@ function draftToPayload(draft: RecipeDraftT, library: LibraryIngredient[], sourc
         name: line.name.trim(),
         quantity: "",
         unit: "g",
-        calories: "0",
-        protein: "0",
-        fiber: "0",
-        servingMode: "whole",
         isFlex: false,
         flexDefault: false,
         isSectionHeader: true,
@@ -123,12 +117,6 @@ function draftToPayload(draft: RecipeDraftT, library: LibraryIngredient[], sourc
         newIngredients.set(ref, {
           ref,
           name,
-          baseUnit: COUNT_UNITS.includes(line.unit) ? "count" : "grams",
-          caloriesPerBaseUnit: 0,
-          proteinPerBaseUnit: 0,
-          fiberPerBaseUnit: 0,
-          referenceUnit: null,
-          gramsPerReferenceUnit: null,
           pantryStaple: line.pantryStaple,
         });
       }
@@ -140,12 +128,8 @@ function draftToPayload(draft: RecipeDraftT, library: LibraryIngredient[], sourc
       name,
       quantity: line.quantity.trim(),
       unit: line.unit,
-      calories: "",
-      protein: "",
-      fiber: "",
       libraryId: matched,
       newIngredientRef,
-      servingMode: "whole",
       isFlex: false,
       flexDefault: false,
     });

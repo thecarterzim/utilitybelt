@@ -34,13 +34,6 @@ export async function getAppData() {
   const initialIngredientLibrary: LibraryIngredient[] = (ingredientsRes.data || []).map((row) => ({
     id: row.id,
     name: row.name,
-    baseUnit: row.base_unit,
-    caloriesPerBaseUnit: Number(row.calories_per_base_unit) || 0,
-    proteinPerBaseUnit: Number(row.protein_per_base_unit) || 0,
-    fiberPerBaseUnit: Number(row.fiber_per_base_unit) || 0,
-    referenceUnit: row.reference_unit,
-    gramsPerReferenceUnit:
-      row.grams_per_reference_unit === null ? null : Number(row.grams_per_reference_unit),
     pantryStaple: Boolean(row.pantry_staple),
   }));
 

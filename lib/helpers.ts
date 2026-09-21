@@ -1,5 +1,4 @@
-import { VOLUME_TO_ML, WEIGHT_TO_GRAMS } from "./constants";
-import type { Ingredient, LibraryIngredient, Recipe, VolumeUnit } from "./types";
+import type { Ingredient, Recipe } from "./types";
 
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -17,87 +16,13 @@ export function scaleQuantityDisplay(quantity: string, multiplier: number): stri
   return String(scaled);
 }
 
-// Converts a quantity+unit into grams for a specific library ingredient.
-// Weight units (g/oz/lb/kg) convert via a fixed universal ratio, no
-// per-ingredient data needed. Volume units (tsp/tbsp/cup/ml/l) need that
-// ingredient's own density — derived from its one stored
-// (referenceUnit, gramsPerReferenceUnit) pair — since a tablespoon of
-// cornstarch and a tablespoon of oil weigh very different amounts. Returns
-// null when the unit can't be converted (a count-style unit, or a volume
-// unit on an ingredient with no known density yet) — callers should treat
-// that as "can't autofill from this", not an error.
-export function gramsForQuantity(
-  ingredient: LibraryIngredient,
-  quantity: number,
-  unit: string
-): number | null {
-  if (unit in WEIGHT_TO_GRAMS) {
-    return quantity * WEIGHT_TO_GRAMS[unit];
-  }
-  if (unit in VOLUME_TO_ML) {
-    if (!ingredient.referenceUnit || !ingredient.gramsPerReferenceUnit) return null;
-    const gramsPerMl = ingredient.gramsPerReferenceUnit / VOLUME_TO_ML[ingredient.referenceUnit];
-    return quantity * VOLUME_TO_ML[unit as VolumeUnit] * gramsPerMl;
-  }
-  return null;
-}
-
-// The suggested calories/protein/fiber for a given quantity+unit of a
-// library ingredient — the autofill shown when linking a recipe row (or a
-// daily extra) to the library. Always just a starting point: the recipe's
-// own values are a separate, freely-editable snapshot from here on, same
-// as any other ingredient row.
-export function libraryIngredientMacros(
-  ingredient: LibraryIngredient,
-  quantity: number,
-  unit: string
-): { calories: number; protein: number; fiber: number } | null {
-  if (ingredient.baseUnit === "count") {
-    if (unit in WEIGHT_TO_GRAMS || unit in VOLUME_TO_ML) return null;
-    return {
-      calories: quantity * ingredient.caloriesPerBaseUnit,
-      protein: quantity * ingredient.proteinPerBaseUnit,
-      fiber: quantity * ingredient.fiberPerBaseUnit,
-    };
-  }
-  const grams = gramsForQuantity(ingredient, quantity, unit);
-  if (grams === null) return null;
-  return {
-    calories: grams * ingredient.caloriesPerBaseUnit,
-    protein: grams * ingredient.proteinPerBaseUnit,
-    fiber: grams * ingredient.fiberPerBaseUnit,
-  };
-}
-
-// The unit to default a recipe row to when first linking it to a library
-// ingredient with no unit already chosen — its own reference unit if it has
-// one (the most natural unit for that specific ingredient), else grams or
-// a generic count.
-export function defaultUnitForLibraryIngredient(ingredient: LibraryIngredient): string {
-  if (ingredient.baseUnit === "count") return "count";
-  return ingredient.referenceUnit ?? "g";
-}
-
-// Whether `unit` is one this app knows how to convert to grams for a
-// "grams" library ingredient (a weight unit always; a volume unit only if
-// the ingredient has density info) — used to decide whether changing units
-// on a linked row should trigger an autofill rescale at all.
-export function isConvertibleUnit(ingredient: LibraryIngredient, unit: string): boolean {
-  if (ingredient.baseUnit === "count") return !(unit in WEIGHT_TO_GRAMS) && !(unit in VOLUME_TO_ML);
-  return gramsForQuantity(ingredient, 1, unit) !== null;
-}
-
 export function emptyIngredient(): Ingredient {
   return {
     id: generateId(),
     name: "",
     quantity: "",
     unit: "g",
-    calories: "",
-    protein: "",
-    fiber: "",
     libraryId: null,
-    servingMode: "whole",
     isFlex: false,
     flexDefault: false,
   };
@@ -109,11 +34,7 @@ export function emptySectionHeader(): Ingredient {
     name: "",
     quantity: "",
     unit: "g",
-    calories: "0",
-    protein: "0",
-    fiber: "0",
     libraryId: null,
-    servingMode: "whole",
     isFlex: false,
     flexDefault: false,
     isSectionHeader: true,
@@ -139,48 +60,6 @@ export function emptyRecipe(): Recipe {
     sourceUrl: null,
     prepSteps: "",
   };
-}
-
-// `activeFlexIds`, when passed, says exactly which flex ingredients count
-// (used for a specific scheduled occurrence). Omit it to fall back to the
-// recipe's own flexDefault flags (used anywhere there's no schedule context
-// — Browse cards, Recipe Detail, the recipe editor). Pass [] deliberately
-// to mean "all flex ingredients off", distinct from "no selection given".
-function sumIngredientField(
-  recipe: Recipe,
-  field: "calories" | "protein" | "fiber",
-  activeFlexIds?: string[] | null
-) {
-  const servings = parseFloat(String(recipe.servings)) || 1;
-  let wholeTotal = 0;
-  let perServingTotal = 0;
-  (recipe.ingredients || []).forEach((i) => {
-    if (i.isSectionHeader) return;
-    if (i.isFlex) {
-      const isOn = activeFlexIds ? activeFlexIds.includes(i.id) : Boolean(i.flexDefault);
-      if (!isOn) return;
-    }
-    const value = parseFloat(i[field]) || 0;
-    if (i.servingMode === "perServing") {
-      perServingTotal += value;
-    } else {
-      wholeTotal += value;
-    }
-  });
-  const perServing = wholeTotal / servings + perServingTotal;
-  return { total: Math.round(perServing * servings), perServing: Math.round(perServing) };
-}
-
-export function recipeCalories(recipe: Recipe, activeFlexIds?: string[] | null) {
-  return sumIngredientField(recipe, "calories", activeFlexIds);
-}
-
-export function recipeProtein(recipe: Recipe, activeFlexIds?: string[] | null) {
-  return sumIngredientField(recipe, "protein", activeFlexIds);
-}
-
-export function recipeFiber(recipe: Recipe, activeFlexIds?: string[] | null) {
-  return sumIngredientField(recipe, "fiber", activeFlexIds);
 }
 
 // A single line of `Recipe.instructions`. A line may start with one or more
@@ -251,11 +130,4 @@ export function sectionStepIndex(
     if (idx !== -1) map.set(section.key, idx);
   }
   return map;
-}
-
-// A compact "3.6 cal/g" / "72 cal/item" summary for library ingredient
-// suggestion dropdowns (recipe ingredient rows).
-export function libraryIngredientSummary(lib: LibraryIngredient): string {
-  const per = lib.baseUnit === "grams" ? "g" : "item";
-  return `${Math.round(lib.caloriesPerBaseUnit * 100) / 100} cal/${per}`;
 }

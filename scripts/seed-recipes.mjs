@@ -18,9 +18,8 @@
 //   "prepSteps": ["step"]           // optional
 // }
 //
-// Macros are intentionally left blank — this household uses the app for
-// shopping and prep, not calorie tracking. Fill them in from the ingredient
-// library later if that ever changes.
+// Library rows are written with just a name and a pantry_staple flag; the
+// ingredients table's remaining columns keep their defaults.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -41,7 +40,6 @@ function loadEnv() {
 }
 
 const VALID_UNITS = new Set(["g", "oz", "kg", "lb", "ml", "l", "cup", "tbsp", "tsp", "count", "can", "unit"]);
-const COUNT_UNITS = new Set(["count", "can", "unit"]);
 const VALID_CATEGORIES = new Set(["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"]);
 
 // Things this kitchen always has on hand — skipped by the shopping list
@@ -138,8 +136,7 @@ async function main() {
       if (ing.section !== undefined) {
         ingredients.push({
           id: generateId(), name: ing.section, quantity: "", unit: "g",
-          calories: "0", protein: "0", fiber: "0", libraryId: null,
-          servingMode: "whole", isFlex: false, flexDefault: false, isSectionHeader: true,
+          libraryId: null, isFlex: false, flexDefault: false, isSectionHeader: true,
         });
         continue;
       }
@@ -148,13 +145,7 @@ async function main() {
       const key = ingName.toLowerCase();
       let libraryId = library.get(key) ?? null;
       if (!libraryId) {
-        const row = {
-          name: ingName,
-          base_unit: COUNT_UNITS.has(ing.unit) ? "count" : "grams",
-          calories_per_base_unit: 0, protein_per_base_unit: 0, fiber_per_base_unit: 0,
-          reference_unit: null, grams_per_reference_unit: null,
-          pantry_staple: PANTRY_STAPLES.has(key),
-        };
+        const row = { name: ingName, pantry_staple: PANTRY_STAPLES.has(key) };
         if (dryRun) {
           libraryId = "dry-run";
         } else {
@@ -168,8 +159,7 @@ async function main() {
 
       ingredients.push({
         id: generateId(), name: ingName, quantity: String(ing.quantity), unit: ing.unit,
-        calories: "", protein: "", fiber: "", libraryId,
-        servingMode: ing.perServing ? "perServing" : "whole", isFlex: false, flexDefault: false,
+        libraryId, isFlex: false, flexDefault: false,
       });
     }
 

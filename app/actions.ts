@@ -3,12 +3,10 @@
 import { generateId } from "@/lib/helpers";
 import { createAdminClient } from "@/lib/supabase/server";
 import type {
-  IngredientBaseUnit,
   LibraryIngredient,
   Recipe,
   RecipeImportPayload,
   ShoppingItem,
-  VolumeUnit,
   WeekBucket,
   WeekItem,
 } from "@/lib/types";
@@ -146,26 +144,17 @@ export async function deleteShoppingItemsAction(ids: string[]): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// The ingredients table still carries the old macro/unit-conversion
+// columns (all with defaults); only name and pantry_staple are read or
+// written any more.
 type IngredientLibraryRow = {
   id: string;
   name: string;
-  base_unit: IngredientBaseUnit;
-  calories_per_base_unit: number | string;
-  protein_per_base_unit: number | string;
-  fiber_per_base_unit: number | string;
-  reference_unit: VolumeUnit | null;
-  grams_per_reference_unit: number | string | null;
   pantry_staple: boolean;
 };
 
 type LibraryIngredientInput = {
   name: string;
-  baseUnit: IngredientBaseUnit;
-  caloriesPerBaseUnit: number;
-  proteinPerBaseUnit: number;
-  fiberPerBaseUnit: number;
-  referenceUnit?: VolumeUnit | null;
-  gramsPerReferenceUnit?: number | null;
   pantryStaple: boolean;
 };
 
@@ -173,25 +162,12 @@ function rowToLibraryIngredient(row: IngredientLibraryRow): LibraryIngredient {
   return {
     id: row.id,
     name: row.name,
-    baseUnit: row.base_unit,
-    caloriesPerBaseUnit: Number(row.calories_per_base_unit) || 0,
-    proteinPerBaseUnit: Number(row.protein_per_base_unit) || 0,
-    fiberPerBaseUnit: Number(row.fiber_per_base_unit) || 0,
-    referenceUnit: row.reference_unit,
-    gramsPerReferenceUnit:
-      row.grams_per_reference_unit === null ? null : Number(row.grams_per_reference_unit),
     pantryStaple: Boolean(row.pantry_staple),
   };
 }
 
 function libraryIngredientPayload(input: LibraryIngredientInput) {
   return {
-    base_unit: input.baseUnit,
-    calories_per_base_unit: input.caloriesPerBaseUnit,
-    protein_per_base_unit: input.proteinPerBaseUnit,
-    fiber_per_base_unit: input.fiberPerBaseUnit,
-    reference_unit: input.baseUnit === "grams" ? input.referenceUnit ?? null : null,
-    grams_per_reference_unit: input.baseUnit === "grams" ? input.gramsPerReferenceUnit ?? null : null,
     pantry_staple: input.pantryStaple,
   };
 }
@@ -242,37 +218,28 @@ export async function deleteLibraryIngredientAction(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-// Imports a recipe produced by the Claude Skill (or hand-written) JSON
-// upload: creates any brand-new library ingredients first, resolves the
-// recipe's newIngredientRef placeholders to their real ids, then saves the
-// recipe — all in one call so the two can't end up half-done relative to
-// each other. Macro values on the recipe's own ingredient rows are used
-// exactly as provided; this does not recompute them (see RecipeImportPayload).
+// Imports a recipe payload (from the in-app Claude parser or a hand-written
+// JSON upload): creates any brand-new library ingredients first, resolves
+// the recipe's newIngredientRef placeholders to their real ids, then saves
+// the recipe — all in one call so the two can't end up half-done relative
+// to each other (see RecipeImportPayload).
 export async function importRecipeAction(
   payload: RecipeImportPayload
 ): Promise<{ recipe: Recipe; newIngredients: LibraryIngredient[] }> {
-  const supabase = createAdminClient();
-
   const refToId = new Map<string, string>();
   const createdIngredients: LibraryIngredient[] = [];
 
   for (const newIng of payload.newIngredients) {
     const saved = await saveLibraryIngredientAction({
       name: newIng.name,
-      baseUnit: newIng.baseUnit,
-      caloriesPerBaseUnit: newIng.caloriesPerBaseUnit,
-      proteinPerBaseUnit: newIng.proteinPerBaseUnit,
-      fiberPerBaseUnit: newIng.fiberPerBaseUnit,
-      referenceUnit: newIng.referenceUnit,
-      gramsPerReferenceUnit: newIng.gramsPerReferenceUnit,
       pantryStaple: newIng.pantryStaple ?? false,
     });
     refToId.set(newIng.ref, saved.id);
     createdIngredients.push(saved);
   }
 
-  // Never trust the imported file's own "id" values as unique — they're
-  // written by an external Skill with no way to guarantee that, and a
+  // Never trust the payload's own "id" values as unique — a hand-written
+  // file has no way to guarantee that, and a
   // collision (seen in practice: multiple rows with id null) breaks React's
   // key uniqueness once rendered. Every other way of creating an ingredient
   // row in this app calls generateId() itself rather than accepting a

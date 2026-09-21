@@ -321,8 +321,9 @@ export default function CookingMode({
   // computing it eagerly avoids a one-frame flash of the wrong layout.
   const [isPhone, setIsPhone] = useState(() => window.matchMedia("(max-width: 819px)").matches);
   useEffect(() => {
+    // State is already initialized from the same query above; only the
+    // change listener is needed here.
     const mq = window.matchMedia("(max-width: 819px)");
-    setIsPhone(mq.matches);
     function onChange(e: MediaQueryListEvent) {
       setIsPhone(e.matches);
     }

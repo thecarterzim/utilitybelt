@@ -37,10 +37,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-# has the live ingredients-feed token baked in — not for version control,
-# same reasoning as the .env* rule above
-/skills/
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
