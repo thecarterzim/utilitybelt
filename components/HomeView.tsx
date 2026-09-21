@@ -11,7 +11,6 @@ type View =
   | "addRecipe"
   | "browse"
   | "recipeDetail"
-  | "mealPlan"
   | "week"
   | "shoppingList"
   | "ingredientLibrary"

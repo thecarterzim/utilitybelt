@@ -1,4 +1,4 @@
-import type { MealSlot, VolumeUnit, WeekBucket } from "./types";
+import type { VolumeUnit, WeekBucket } from "./types";
 
 export const UNITS = ["g", "oz", "kg", "lb", "ml", "l", "cup", "tbsp", "tsp", "count", "can", "unit"];
 
@@ -33,15 +33,6 @@ export const VOLUME_TO_ML: Record<VolumeUnit, number> = {
 export const COUNT_UNITS = ["count", "can", "unit"];
 
 export const CATEGORIES = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
-
-export const MEAL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner", "snack"];
-
-export const SLOT_LABEL: Record<MealSlot, string> = {
-  breakfast: "Breakfast",
-  lunch: "Lunch",
-  dinner: "Dinner",
-  snack: "Snack",
-};
 
 export const CATEGORY_STYLE: Record<string, string> = {
   Breakfast: "bg-amber-200 text-amber-900",

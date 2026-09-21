@@ -16,6 +16,9 @@ create table if not exists recipes (
   created_at timestamptz not null default now()
 );
 
+-- NO LONGER USED by the app (the 7-day calendar was replaced by the
+-- "This week" buckets in week_items). Safe to drop, along with the
+-- meal_plan alter-table lines further down.
 create table if not exists meal_plan (
   id uuid primary key default gen_random_uuid(),
   date date not null,
@@ -125,6 +128,8 @@ alter table meal_plan add column if not exists eaten boolean not null default fa
 -- no protein/fiber tracking, no link back to the ingredient library (the
 -- library is only used client-side as a convenience to look up calories
 -- when adding one of these).
+-- NO LONGER USED by the app (daily extras went away with the calendar).
+-- Safe to drop.
 create table if not exists daily_extras (
   id uuid primary key default gen_random_uuid(),
   date date not null,

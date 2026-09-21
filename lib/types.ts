@@ -1,7 +1,3 @@
-export type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
-
-export type DayNutrition = { calories: number; protein: number; fiber: number };
-
 export type ServingMode = "whole" | "perServing";
 
 export type Ingredient = {
@@ -23,9 +19,8 @@ export type Ingredient = {
   servingMode?: ServingMode;
   // Flexible ingredients are swappable options (e.g. "pick your vegetables"
   // in a curry) grouped separately from the recipe's fixed ingredients.
-  // `flexDefault` is whether it's ON by default when the recipe is newly
-  // scheduled — the actual on/off state for a specific scheduled occurrence
-  // lives on that meal_plan row's flexSelection, not here.
+  // `flexDefault` is whether it's ON by default — Cooking Mode and the
+  // shopping list both start from the defaults.
   isFlex?: boolean;
   flexDefault?: boolean;
   // A labeled divider inserted into the (non-flex) ingredient list, e.g.
@@ -95,31 +90,6 @@ export type Recipe = {
   prepSteps?: string;
 };
 
-// A one-off meal typed directly into a slot — never saved to the recipes
-// table, only ever lives inside that slot's meal_plan row.
-export type CustomMeal = {
-  name: string;
-  calories: number;
-  protein: number;
-  fiber: number;
-};
-
-// A slot holds either a reference to a saved recipe OR an inline custom
-// meal, never both. `null` (or absent) means nothing assigned.
-export type MealSlotValue = {
-  recipeId: string | null;
-  custom: CustomMeal | null;
-  // Ids of the recipe's flex ingredients that are ON for this specific
-  // occurrence — independent of any other date/slot using the same recipe.
-  // null/absent means "use the recipe's own flexDefault flags".
-  flexSelection?: string[] | null;
-  // Whether this specific occurrence has actually been eaten — toggled from
-  // Home's today card. Resets to false whenever the slot is reassigned.
-  eaten?: boolean;
-};
-
-export type DayPlan = Partial<Record<MealSlot, MealSlotValue | null>>;
-
 // "This week" buckets — the week is planned by role, not by day. "make" is
 // what Kristine cooks on prep day, "prep" is what she preps ahead for
 // Carter to finish, the rest are just groupings for the shopping list.
@@ -131,8 +101,6 @@ export type WeekItem = {
   recipeId: string;
 };
 
-export type MealPlan = Record<string, DayPlan>;
-
 export type ShoppingItem = {
   id: string;
   name: string;
@@ -140,15 +108,6 @@ export type ShoppingItem = {
   unit: string;
   recipes: string[];
   checked: boolean;
-};
-
-// Something eaten on a given day outside any planned meal slot. Calories
-// only, by design — no protein/fiber tracking for these.
-export type DailyExtra = {
-  id: string;
-  date: string;
-  name: string;
-  calories: number;
 };
 
 // ---------- Recipe import (JSON upload) ----------

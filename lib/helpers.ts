@@ -1,5 +1,5 @@
 import { VOLUME_TO_ML, WEIGHT_TO_GRAMS } from "./constants";
-import type { Ingredient, LibraryIngredient, MealSlotValue, Recipe, VolumeUnit } from "./types";
+import type { Ingredient, LibraryIngredient, Recipe, VolumeUnit } from "./types";
 
 export function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -253,60 +253,8 @@ export function sectionStepIndex(
   return map;
 }
 
-export type PlanDay = {
-  date: string;
-  weekday: string;
-  dayNum: number;
-  month: string;
-  isToday: boolean;
-};
-
-// A 7-day window starting at `anchor` (defaults to today). `isToday` is
-// computed against the real current date, independent of the anchor, so it
-// still correctly marks "today" even when paged to a past/future week.
-export function getWeek(anchor?: Date): PlanDay[] {
-  const start = anchor ? new Date(anchor) : new Date();
-  start.setHours(0, 0, 0, 0);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const todayIso = now.toISOString().slice(0, 10);
-
-  const days: PlanDay[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const iso = d.toISOString().slice(0, 10);
-    days.push({
-      date: iso,
-      weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
-      dayNum: d.getDate(),
-      month: d.toLocaleDateString("en-US", { month: "short" }),
-      isToday: iso === todayIso,
-    });
-  }
-  return days;
-}
-
-export function getNext7Days(): PlanDay[] {
-  return getWeek();
-}
-
-// The display name for a filled meal-plan slot — a custom meal's own name,
-// or the linked recipe's name, or null for an empty/dangling slot. Shared by
-// Home's today card and every Meal Plan cell.
-export function slotDisplayName(
-  slot: MealSlotValue | null | undefined,
-  recipes: Recipe[]
-): string | null {
-  if (!slot) return null;
-  if (slot.custom) return slot.custom.name;
-  if (slot.recipeId) return recipes.find((r) => r.id === slot.recipeId)?.name ?? null;
-  return null;
-}
-
 // A compact "3.6 cal/g" / "72 cal/item" summary for library ingredient
-// suggestion dropdowns — shared across every place one appears (recipe
-// ingredient rows, daily extras).
+// suggestion dropdowns (recipe ingredient rows).
 export function libraryIngredientSummary(lib: LibraryIngredient): string {
   const per = lib.baseUnit === "grams" ? "g" : "item";
   return `${Math.round(lib.caloriesPerBaseUnit * 100) / 100} cal/${per}`;

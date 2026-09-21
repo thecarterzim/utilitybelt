@@ -26,46 +26,30 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import {
-  addDailyExtraAction,
   addManualShoppingItemAction,
   addWeekItemAction,
-  assignCustomMealAction,
-  assignMealAction,
-  clearMealAction,
-  deleteDailyExtraAction,
   deleteLibraryIngredientAction,
   deleteRecipeAction,
   deleteShoppingItemsAction,
-  getMealPlanRangeAction,
   importRecipeAction,
-  moveMealSlotAction,
   removeWeekItemAction,
   saveLibraryIngredientAction,
   startNewWeekAction,
   saveRecipeAction,
   syncShoppingListAction,
   toggleShoppingItemAction,
-  updateFlexSelectionAction,
   updateLibraryIngredientAction,
 } from "@/app/actions";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import CookingMode from "@/components/CookingMode";
 import { EmptyState } from "@/components/EmptyState";
 import { HomeView } from "@/components/HomeView";
-import {
-  ExtrasModal,
-  FlexModifyModal,
-  MealPlanView,
-  MealSlotActionModal,
-  RecipePickerModal,
-} from "@/components/MealPlanView";
 import { RecipesView } from "@/components/RecipesView";
 import { WeekView } from "@/components/WeekView";
 import {
   CATEGORIES,
   CATEGORY_STYLE,
   COUNT_UNITS,
-  MEAL_SLOTS,
   UNITS,
 } from "@/lib/constants";
 import {
@@ -77,20 +61,13 @@ import {
   generateId,
   hasFlexIngredients,
   parseInstructionSteps,
-  recipeCalories,
-  recipeFiber,
-  recipeProtein,
   scaleQuantityDisplay,
 } from "@/lib/helpers";
 import type {
-  CustomMeal,
-  DailyExtra,
   ImportIngredient,
   Ingredient,
   IngredientBaseUnit,
   LibraryIngredient,
-  MealPlan,
-  MealSlot,
   NewLibraryIngredientInput,
   Recipe,
   RecipeImportPayload,
@@ -105,7 +82,6 @@ type View =
   | "addRecipe"
   | "browse"
   | "recipeDetail"
-  | "mealPlan"
   | "week"
   | "shoppingList"
   | "ingredientLibrary"
@@ -122,14 +98,6 @@ type LibraryIngredientInput = {
   pantryStaple: boolean;
 };
 
-// Keying checked-ingredient/step state by date+slot (when launched from a
-// scheduled meal) keeps each occurrence's cooking session independent, same
-// as flexSelection already is; launched from Recipe Detail with no
-// date/slot, it just keys off the recipe.
-function cookingSessionKey(recipeId: string, date?: string, slot?: MealSlot): string {
-  return `cookingMode:${recipeId}${date && slot ? `:${date}:${slot}` : ""}`;
-}
-
 function useToast(): [string | null, (msg: string) => void] {
   const [message, setMessage] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -143,31 +111,25 @@ function useToast(): [string | null, (msg: string) => void] {
 
 export default function LarderApp({
   initialRecipes,
-  initialMealPlan,
   initialShoppingList,
   initialIngredientLibrary,
-  initialDailyExtras,
   initialWeekItems,
   initialView,
   initialRecipeId,
 }: {
   initialRecipes: Recipe[];
-  initialMealPlan: MealPlan;
   initialShoppingList: ShoppingItem[];
   initialIngredientLibrary: LibraryIngredient[];
-  initialDailyExtras: DailyExtra[];
   initialWeekItems: WeekItem[];
   initialView?: View;
   // Deep link straight to one recipe (/recipe/<id>) — used by Trello cards.
   initialRecipeId?: string | null;
 }) {
   const [recipes, setRecipes] = useState<Recipe[]>(initialRecipes);
-  const [mealPlan, setMealPlan] = useState<MealPlan>(initialMealPlan);
   const [shoppingList, setShoppingList] = useState<ShoppingItem[]>(initialShoppingList);
   const [ingredientLibrary, setIngredientLibrary] = useState<LibraryIngredient[]>(
     initialIngredientLibrary
   );
-  const [dailyExtras, setDailyExtras] = useState<DailyExtra[]>(initialDailyExtras);
   const [weekItems, setWeekItems] = useState<WeekItem[]>(initialWeekItems);
   const [confirmNewWeek, setConfirmNewWeek] = useState(false);
 
@@ -175,21 +137,12 @@ export default function LarderApp({
   const [view, setView] = useState<View>(startOnRecipe ? "recipeDetail" : initialView ?? "home");
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(startOnRecipe ? initialRecipeId! : null);
-  const [pickerSlot, setPickerSlot] = useState<{ date: string; slot: MealSlot } | null>(null);
-  const [modifySlot, setModifySlot] = useState<{ date: string; slot: MealSlot } | null>(null);
-  const [slotActionTarget, setSlotActionTarget] = useState<{ date: string; slot: MealSlot } | null>(
-    null
-  );
   const [cookingSession, setCookingSession] = useState<{
     recipe: Recipe;
     flexIds: string[];
-    date?: string;
-    slot?: MealSlot;
     servingMultiplier: number;
   } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [activeDayIdx, setActiveDayIdx] = useState(0);
-  const [extrasDate, setExtrasDate] = useState<string | null>(null);
 
   const [browseQuery, setBrowseQuery] = useState("");
   const [browseCategory, setBrowseCategory] = useState("All");
@@ -299,17 +252,10 @@ export default function LarderApp({
   async function deleteRecipe(id: string) {
     try {
       await deleteRecipeAction(id);
-      const next = recipes.filter((r) => r.id !== id);
-      const nextPlan: MealPlan = {};
-      Object.entries(mealPlan).forEach(([date, slots]) => {
-        const cleaned = { ...slots };
-        MEAL_SLOTS.forEach((mt) => {
-          if (cleaned[mt]?.recipeId === id) cleaned[mt] = null;
-        });
-        nextPlan[date] = cleaned;
-      });
-      setRecipes(next);
-      setMealPlan(nextPlan);
+      // week_items rows cascade-delete with the recipe (see schema.sql), so
+      // mirror that locally rather than leaving dangling bucket entries.
+      setRecipes(recipes.filter((r) => r.id !== id));
+      setWeekItems((prev) => prev.filter((w) => w.recipeId !== id));
       setConfirmDeleteId(null);
       setSelectedRecipeId(null);
       setView("browse");
@@ -317,154 +263,6 @@ export default function LarderApp({
     } catch {
       showToast("Couldn't delete recipe — try again.");
     }
-  }
-
-  async function assignMeal(date: string, slot: MealSlot, recipeId: string) {
-    const recipe = recipes.find((r) => r.id === recipeId);
-    const flexSelection = recipe ? defaultFlexIds(recipe) : [];
-    const prev = mealPlan;
-    const next = {
-      ...mealPlan,
-      [date]: { ...(mealPlan[date] || {}), [slot]: { recipeId, custom: null, flexSelection } },
-    };
-    setMealPlan(next);
-    setPickerSlot(null);
-    try {
-      await assignMealAction(date, slot, recipeId, flexSelection);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't save that meal — try again.");
-    }
-  }
-
-  async function updateFlexSelection(date: string, slot: MealSlot, flexSelection: string[]) {
-    const currentSlot = mealPlan[date]?.[slot];
-    if (!currentSlot) return;
-    const prev = mealPlan;
-    const next = {
-      ...mealPlan,
-      [date]: { ...(mealPlan[date] || {}), [slot]: { ...currentSlot, flexSelection } },
-    };
-    setMealPlan(next);
-    setModifySlot(null);
-    try {
-      await updateFlexSelectionAction(date, slot, flexSelection);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't update that meal — try again.");
-    }
-  }
-
-  async function assignCustomMeal(date: string, slot: MealSlot, custom: CustomMeal) {
-    const prev = mealPlan;
-    const next = {
-      ...mealPlan,
-      [date]: { ...(mealPlan[date] || {}), [slot]: { recipeId: null, custom } },
-    };
-    setMealPlan(next);
-    setPickerSlot(null);
-    try {
-      await assignCustomMealAction(date, slot, custom);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't save that meal — try again.");
-    }
-  }
-
-  async function clearMeal(date: string, slot: MealSlot) {
-    const prev = mealPlan;
-    const next = { ...mealPlan, [date]: { ...(mealPlan[date] || {}), [slot]: null } };
-    setMealPlan(next);
-    setPickerSlot(null);
-    try {
-      await clearMealAction(date, slot);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't clear that meal — try again.");
-    }
-  }
-
-  async function moveMeal(
-    from: { date: string; slot: MealSlot },
-    to: { date: string; slot: MealSlot }
-  ) {
-    const prev = mealPlan;
-    const fromValue = (mealPlan[from.date] || {})[from.slot] ?? null;
-    const toValue = (mealPlan[to.date] || {})[to.slot] ?? null;
-    const next: MealPlan = {
-      ...mealPlan,
-      [from.date]: { ...(mealPlan[from.date] || {}), [from.slot]: toValue },
-      [to.date]: { ...(mealPlan[to.date] || {}), [to.slot]: fromValue },
-    };
-    setMealPlan(next);
-    try {
-      await moveMealSlotAction(from, to);
-    } catch {
-      setMealPlan(prev);
-      showToast("Couldn't move that meal — try again.");
-    }
-  }
-
-  // The initial page load only covers a padded window around today (see
-  // lib/server/get-app-data.ts) — paging Meal Plan to a week outside that
-  // needs its own fetch. Widens outward and re-fetches the requested range
-  // whenever it's not already fully covered; a little redundant refetching
-  // at the edges is cheap and simpler than tracking exact gaps.
-  const loadedRangeRef = useRef<{ start: string; end: string }>((() => {
-    const today = new Date();
-    const start = new Date(today);
-    start.setDate(start.getDate() - 1);
-    const end = new Date(today);
-    end.setDate(end.getDate() + 8);
-    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
-  })());
-
-  async function ensureMealPlanRange(start: string, end: string) {
-    const loaded = loadedRangeRef.current;
-    if (start >= loaded.start && end <= loaded.end) return;
-    const nextStart = start < loaded.start ? start : loaded.start;
-    const nextEnd = end > loaded.end ? end : loaded.end;
-    try {
-      const { mealPlan: fetched, dailyExtras: fetchedExtras } = await getMealPlanRangeAction(nextStart, nextEnd);
-      loadedRangeRef.current = { start: nextStart, end: nextEnd };
-      setMealPlan((prevPlan) => ({ ...prevPlan, ...fetched }));
-      setDailyExtras((prevExtras) => {
-        const byId = new Map(prevExtras.map((e) => [e.id, e]));
-        fetchedExtras.forEach((e) => byId.set(e.id, e));
-        return Array.from(byId.values());
-      });
-    } catch {
-      showToast("Couldn't load that week — try again.");
-    }
-  }
-
-  function dayNutrition(date: string) {
-    const slots = mealPlan[date] || {};
-    const fromMeals = MEAL_SLOTS.reduce(
-      (acc, mt) => {
-        const slot = slots[mt];
-        if (slot?.custom) {
-          return {
-            calories: acc.calories + slot.custom.calories,
-            protein: acc.protein + slot.custom.protein,
-            fiber: acc.fiber + slot.custom.fiber,
-          };
-        }
-        const r = recipes.find((rc) => rc.id === slot?.recipeId);
-        if (!r) return acc;
-        const flexIds = slot?.flexSelection;
-        return {
-          calories: acc.calories + recipeCalories(r, flexIds).perServing,
-          protein: acc.protein + recipeProtein(r, flexIds).perServing,
-          fiber: acc.fiber + recipeFiber(r, flexIds).perServing,
-        };
-      },
-      { calories: 0, protein: 0, fiber: 0 }
-    );
-    const extraCalories = dailyExtras
-      .filter((e) => e.date === date)
-      .reduce((sum, e) => sum + e.calories, 0);
-    return { ...fromMeals, calories: fromMeals.calories + extraCalories };
   }
 
   async function addWeekItem(bucket: WeekBucket, recipeId: string) {
@@ -664,26 +462,6 @@ export default function LarderApp({
     }
   }
 
-  async function addDailyExtra(date: string, name: string, calories: number) {
-    try {
-      const saved = await addDailyExtraAction(date, name, calories);
-      setDailyExtras((prev) => [...prev, saved]);
-    } catch {
-      showToast("Couldn't add that — try again.");
-    }
-  }
-
-  async function deleteDailyExtra(id: string) {
-    const prev = dailyExtras;
-    setDailyExtras((cur) => cur.filter((e) => e.id !== id));
-    try {
-      await deleteDailyExtraAction(id);
-    } catch {
-      setDailyExtras(prev);
-      showToast("Couldn't remove that — try again.");
-    }
-  }
-
   const filteredRecipes = recipes.filter((r) => {
     const matchesQuery = r.name.toLowerCase().includes(browseQuery.toLowerCase());
     const matchesCategory = browseCategory === "All" || r.category === browseCategory;
@@ -820,28 +598,6 @@ export default function LarderApp({
             );
           })()}
 
-        {view === "mealPlan" && (
-          <MealPlanView
-            mealPlan={mealPlan}
-            recipes={recipes}
-            dailyExtras={dailyExtras}
-            dayNutrition={dayNutrition}
-            activeDayIdx={activeDayIdx}
-            setActiveDayIdx={setActiveDayIdx}
-            openPicker={(date, slot) => setPickerSlot({ date, slot })}
-            openExtras={(date) => setExtrasDate(date)}
-            openSlotActions={(date, slot) => setSlotActionTarget({ date, slot })}
-            onBuildList={buildShoppingList}
-            onMoveMeal={moveMeal}
-            onEnsureRange={ensureMealPlanRange}
-            cookingCell={
-              cookingSession && cookingSession.date && cookingSession.slot
-                ? { date: cookingSession.date, slot: cookingSession.slot }
-                : null
-            }
-          />
-        )}
-
         {view === "week" && (
           <WeekView
             recipes={recipes}
@@ -882,119 +638,18 @@ export default function LarderApp({
         />
       )}
 
-      {pickerSlot && (
-        <RecipePickerModal
-          recipes={recipes}
-          slot={pickerSlot}
-          current={(mealPlan[pickerSlot.date] || {})[pickerSlot.slot] || null}
-          onPick={(id) => assignMeal(pickerSlot.date, pickerSlot.slot, id)}
-          onSaveCustom={(custom) => assignCustomMeal(pickerSlot.date, pickerSlot.slot, custom)}
-          onClear={() => clearMeal(pickerSlot.date, pickerSlot.slot)}
-          onClose={() => setPickerSlot(null)}
-          onAddNew={() => {
-            setPickerSlot(null);
-            setEditingRecipe(null);
-            setView("addRecipe");
-          }}
-        />
-      )}
-
-      {extrasDate && (
-        <ExtrasModal
-          date={extrasDate}
-          extras={dailyExtras.filter((e) => e.date === extrasDate)}
-          ingredientLibrary={ingredientLibrary}
-          onAdd={(name, calories) => addDailyExtra(extrasDate, name, calories)}
-          onDelete={deleteDailyExtra}
-          onClose={() => setExtrasDate(null)}
-        />
-      )}
-
-      {modifySlot &&
-        (() => {
-          const slotValue = mealPlan[modifySlot.date]?.[modifySlot.slot];
-          const recipe = slotValue?.recipeId
-            ? recipes.find((r) => r.id === slotValue.recipeId)
-            : null;
-          if (!recipe) {
-            setModifySlot(null);
-            return null;
-          }
-          return (
-            <FlexModifyModal
-              recipeName={recipe.name}
-              flexIngredients={recipe.ingredients.filter((i) => i.isFlex)}
-              selected={slotValue?.flexSelection ?? defaultFlexIds(recipe)}
-              onSave={(ids) => updateFlexSelection(modifySlot.date, modifySlot.slot, ids)}
-              onClose={() => setModifySlot(null)}
-            />
-          );
-        })()}
-
-      {slotActionTarget &&
-        (() => {
-          const slotValue = mealPlan[slotActionTarget.date]?.[slotActionTarget.slot];
-          if (!slotValue || (!slotValue.recipeId && !slotValue.custom)) {
-            setSlotActionTarget(null);
-            return null;
-          }
-          const recipe = slotValue.recipeId
-            ? recipes.find((r) => r.id === slotValue.recipeId) ?? null
-            : null;
-          const canModify = Boolean(recipe && hasFlexIngredients(recipe));
-          const canCook = Boolean(recipe);
-          const name = slotValue.custom ? slotValue.custom.name : recipe?.name ?? "";
-          return (
-            <MealSlotActionModal
-              name={name}
-              canModify={canModify}
-              canCook={canCook}
-              onRemove={() => {
-                clearMeal(slotActionTarget.date, slotActionTarget.slot);
-                setSlotActionTarget(null);
-              }}
-              onModify={() => {
-                setModifySlot(slotActionTarget);
-                setSlotActionTarget(null);
-              }}
-              onSwap={() => {
-                setPickerSlot(slotActionTarget);
-                setSlotActionTarget(null);
-              }}
-              onCook={() => {
-                if (recipe) {
-                  setCookingSession({
-                    recipe,
-                    flexIds: slotValue.flexSelection ?? defaultFlexIds(recipe),
-                    date: slotActionTarget.date,
-                    slot: slotActionTarget.slot,
-                    servingMultiplier: 1,
-                  });
-                }
-                setSlotActionTarget(null);
-              }}
-              onClose={() => setSlotActionTarget(null)}
-            />
-          );
-        })()}
-
       {cookingSession && (
         <CookingMode
           recipe={cookingSession.recipe}
           flexIds={cookingSession.flexIds}
           servingMultiplier={cookingSession.servingMultiplier}
-          sessionKey={cookingSessionKey(
-            cookingSession.recipe.id,
-            cookingSession.date,
-            cookingSession.slot
-          )}
           onClose={() => setCookingSession(null)}
         />
       )}
 
       {confirmDeleteId && (
         <ConfirmModal
-          message="Delete this recipe? It'll be removed from any planned meals too."
+          message="Delete this recipe? It'll be removed from this week too."
           onCancel={() => setConfirmDeleteId(null)}
           onConfirm={() => deleteRecipe(confirmDeleteId)}
         />

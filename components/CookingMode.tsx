@@ -273,15 +273,16 @@ export default function CookingMode({
   recipe,
   flexIds,
   servingMultiplier,
-  sessionKey,
   onClose,
 }: {
   recipe: Recipe;
   flexIds: string[];
   servingMultiplier: number;
-  sessionKey: string;
   onClose: () => void;
 }) {
+  // Checked-ingredient/step state and timers persist in localStorage keyed
+  // by recipe, so an accidental reload mid-cook picks up where it left off.
+  const sessionKey = `cookingMode:${recipe.id}`;
   const steps = useMemo(() => parseInstructionSteps(recipe.instructions), [recipe.instructions]);
   const sections = useMemo(() => {
     // Flex ingredients live wherever they were placed in the recipe rather

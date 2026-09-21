@@ -1,31 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import type { DailyExtra, LibraryIngredient, MealPlan, Recipe, ShoppingItem, WeekItem } from "@/lib/types";
-
-// Meal-plan "today" is computed on the client from the browser's clock, but
-// we fetch server-side before we know the client's timezone. Pad the range
-// by a day on each side so a skew near midnight never hides a planned meal.
-function paddedRange() {
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - 1);
-  const end = new Date(today);
-  end.setDate(end.getDate() + 8);
-  return {
-    start: start.toISOString().slice(0, 10),
-    end: end.toISOString().slice(0, 10),
-  };
-}
+import type { LibraryIngredient, Recipe, ShoppingItem, WeekItem } from "@/lib/types";
 
 export async function getAppData() {
   const supabase = createAdminClient();
-  const { start, end } = paddedRange();
 
-  const [recipesRes, mealPlanRes, shoppingRes, ingredientsRes, extrasRes, weekRes] = await Promise.all([
+  const [recipesRes, shoppingRes, ingredientsRes, weekRes] = await Promise.all([
     supabase.from("recipes").select("*").order("name"),
-    supabase.from("meal_plan").select("*").gte("date", start).lte("date", end),
     supabase.from("shopping_list_items").select("*").order("name"),
     supabase.from("ingredients").select("*").order("name"),
-    supabase.from("daily_extras").select("*").gte("date", start).lte("date", end),
     supabase.from("week_items").select("*").order("position").order("created_at"),
   ]);
 
@@ -39,17 +21,6 @@ export async function getAppData() {
     sourceUrl: r.source_url ?? null,
     prepSteps: r.prep_steps ?? "",
   }));
-
-  const initialMealPlan: MealPlan = {};
-  (mealPlanRes.data || []).forEach((row) => {
-    if (!initialMealPlan[row.date]) initialMealPlan[row.date] = {};
-    initialMealPlan[row.date][row.slot as keyof MealPlan[string]] = {
-      recipeId: row.recipe_id,
-      custom: row.custom_meal ?? null,
-      flexSelection: row.flex_selection ?? null,
-      eaten: Boolean(row.eaten),
-    };
-  });
 
   const initialShoppingList: ShoppingItem[] = (shoppingRes.data || []).map((row) => ({
     id: row.id,
@@ -73,13 +44,6 @@ export async function getAppData() {
     pantryStaple: Boolean(row.pantry_staple),
   }));
 
-  const initialDailyExtras: DailyExtra[] = (extrasRes.data || []).map((row) => ({
-    id: row.id,
-    date: row.date,
-    name: row.name,
-    calories: Number(row.calories) || 0,
-  }));
-
   const initialWeekItems: WeekItem[] = (weekRes.data || []).map((row) => ({
     id: row.id,
     bucket: row.bucket,
@@ -88,10 +52,8 @@ export async function getAppData() {
 
   return {
     initialRecipes,
-    initialMealPlan,
     initialShoppingList,
     initialIngredientLibrary,
-    initialDailyExtras,
     initialWeekItems,
   };
 }
