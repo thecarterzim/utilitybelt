@@ -1,0 +1,511 @@
+[
+  {
+    "name": "Oat Cookies",
+    "category": "Snack",
+    "servings": 12,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Rolled Oats (Gluten-Free)",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Ripe Banana",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Maple Syrup",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Coconut Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Cinnamon",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Salt",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 350°F. Line a baking sheet with parchment.",
+      "Mash the bananas in a large bowl until very smooth.",
+      "Stir in the melted coconut oil and maple syrup.",
+      "Add the oats, cinnamon, and a pinch of salt. Mix until fully combined.",
+      "Scoop tablespoon-sized rounds onto the sheet and press gently to flatten.",
+      "Bake 12–15 min until the edges are golden.",
+      "Cool on the pan 5 min, then move to a rack. Cool completely before storing.",
+      "Fridge in an airtight container (5 days) or freeze individually (2 weeks)."
+    ],
+    "prepSteps": [
+      "Bake a full batch and cool completely.",
+      "Store in the fridge (5 days) or freeze on a plate so they don't stick together."
+    ]
+  },
+  {
+    "name": "Zucchini Muffins",
+    "category": "Snack",
+    "servings": 12,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "section": "Wet"
+      },
+      {
+        "name": "Zucchini",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Unsweetened Applesauce",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Ripe Banana",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Egg",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "section": "Dry"
+      },
+      {
+        "name": "Oat Flour",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Baking Soda",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Baking Powder",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Pumpkin Pie Spice",
+        "quantity": "1",
+        "unit": "tbsp"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 350°F. Line or grease a muffin tin (avocado oil works).",
+      "[WET] Grate the zucchini and squeeze it in a clean towel until very dry — about 1 cup shredded.",
+      "[WET] Whisk the zucchini, applesauce, mashed bananas, and eggs together.",
+      "[DRY] In a separate bowl, mix the oat flour, baking soda, baking powder, and pumpkin pie spice. Almond flour can stand in for oat flour if running low.",
+      "Fold the dry mix into the wet until just combined. Don't overmix.",
+      "Fill each cup about ¾ full.",
+      "Bake 22–28 min, until a toothpick comes out clean.",
+      "Cool completely on a rack, then bag individually and freeze."
+    ],
+    "prepSteps": [
+      "Bake a full batch and cool completely.",
+      "Freeze individually on a sheet pan, then transfer to a freezer bag."
+    ]
+  },
+  {
+    "name": "Pumpkin Oat Muffins",
+    "category": "Snack",
+    "servings": 12,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "section": "Wet"
+      },
+      {
+        "name": "Pumpkin Puree",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Unsweetened Applesauce",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Ripe Banana",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Egg",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "section": "Dry"
+      },
+      {
+        "name": "Oat Flour",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Baking Soda",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Baking Powder",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Pumpkin Pie Spice",
+        "quantity": "1",
+        "unit": "tbsp"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 350°F. Line the muffin tin or grease it with avocado oil.",
+      "[WET] Whisk the pumpkin puree, applesauce, mashed bananas, and eggs together.",
+      "[DRY] In a separate bowl, mix the oat flour, baking soda, baking powder, and pumpkin pie spice.",
+      "Fold the dry mix into the wet until just combined. Don't overmix.",
+      "Fill each cup about ¾ full.",
+      "Bake 22–28 min, until a toothpick comes out clean.",
+      "Cool completely on a rack before bagging."
+    ],
+    "prepSteps": [
+      "Bake a full batch and cool completely.",
+      "Freeze individually on a sheet pan, then transfer to a freezer bag."
+    ]
+  },
+  {
+    "name": "Egg Muffins",
+    "category": "Breakfast",
+    "servings": 6,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Egg",
+        "quantity": "6",
+        "unit": "count"
+      },
+      {
+        "name": "Bell Pepper",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Broccoli Florets",
+        "quantity": "1",
+        "unit": "cup"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 350°F. Grease a standard muffin tin.",
+      "Dice the bell pepper and cut the broccoli into small florets.",
+      "Whisk the eggs, then stir in the pepper and broccoli.",
+      "Pour into the tin — fills about 6 cups.",
+      "Bake 18–20 min until set in the center.",
+      "Cool, then store in the fridge or freeze in a bag."
+    ],
+    "prepSteps": [
+      "Bake a batch and cool. Fridge for the week or freeze."
+    ]
+  },
+  {
+    "name": "Sweet Potato Rounds",
+    "category": "Snack",
+    "servings": 4,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Sweet Potato",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Salt",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 400°F.",
+      "Slice the sweet potatoes into ½-inch coins.",
+      "Toss with avocado oil and a pinch of salt. Spread in a single layer on a lined sheet pan.",
+      "Roast 20 min, flipping once.",
+      "Cool and store in a fridge container — lasts 4–5 days."
+    ],
+    "prepSteps": [
+      "Roast a batch, cool, and store in a fridge container for snacks all week."
+    ]
+  },
+  {
+    "name": "Roasted Baby Potatoes",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Baby Potatoes",
+        "quantity": "1",
+        "unit": "lb"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Salt",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Black Pepper",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 400°F.",
+      "Wash the potatoes and halve them (slice larger ones).",
+      "Toss with avocado oil, a pinch of salt, and a pinch of pepper. Spread on a sheet pan.",
+      "Roast 25–30 min, flipping halfway, until golden and fork-tender.",
+      "Cool completely and store in a covered fridge container. Reheat at 375°F for 10 min before serving."
+    ],
+    "prepSteps": [
+      "Fully roast, cool, and store in the fridge as a side for dinners."
+    ]
+  },
+  {
+    "name": "Smoked Lemon Garlic Salmon",
+    "category": "Dinner",
+    "servings": 8,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Salmon Fillets (Wild-Caught)",
+        "quantity": "2",
+        "unit": "lb"
+      },
+      {
+        "name": "Lemon",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Baby Potatoes",
+        "quantity": "2",
+        "unit": "lb"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Frozen Mixed Vegetables",
+        "quantity": "1",
+        "unit": "lb"
+      },
+      {
+        "section": "Dry Brine"
+      },
+      {
+        "name": "Coconut Sugar",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Black Pepper",
+        "quantity": "1",
+        "unit": "tsp"
+      }
+    ],
+    "instructions": [
+      "Late afternoon: unwrap the brined salmon and rinse thoroughly under cold water — unrinsed is too salty. Pat dry.",
+      "Set skin-side down on a wire rack over a sheet pan and refrigerate uncovered about 2 hours to form a pellicle.",
+      "Preheat the Traeger to 225°F (alder or fruitwood pellets).",
+      "Place the salmon skin-side down directly on the grate. Smoke 45–60 min until it reaches 145°F internal.",
+      "Finish with a squeeze of lemon.",
+      "Reheat the roasted potatoes at 375°F for 10 min while the salmon rests, and sauté the frozen vegetables."
+    ],
+    "prepSteps": [
+      "[DRY BRINE] Mix the coconut sugar, kosher salt, and black pepper in a small bowl.",
+      "Lay a large sheet of plastic wrap on a sheet pan, big enough to wrap the salmon. Spread half the brine on it in the shape of the fillets.",
+      "Place the salmon skin-side down on the brine and spread the rest over the top. Wrap tightly.",
+      "Set another sheet pan on top with a few cans to weigh it down. Refrigerate.",
+      "Halve the baby potatoes, toss with avocado oil and salt, and roast at 400°F for 25–30 min. Cool and refrigerate."
+    ]
+  },
+  {
+    "name": "Smoked Chicken Fajitas",
+    "category": "Dinner",
+    "servings": 6,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Chicken Breast",
+        "quantity": "2",
+        "unit": "lb"
+      },
+      {
+        "name": "Bell Pepper",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Onion",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Corn Tortillas",
+        "quantity": "12",
+        "unit": "count"
+      },
+      {
+        "name": "Avocado",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Lime",
+        "quantity": "4",
+        "unit": "count"
+      },
+      {
+        "section": "Marinade"
+      },
+      {
+        "name": "Cumin",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Chili Powder",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Garlic",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      }
+    ],
+    "instructions": [
+      "Preheat the Traeger to 225°F (hickory or mesquite pellets).",
+      "Place the whole marinated breasts directly on the grate.",
+      "Smoke 60–75 min until 165°F internal. Keep the breasts whole — they shred easily after resting.",
+      "Toss the sliced peppers and onion in avocado oil and add in a foil pan for the last 30 min.",
+      "Rest 10 min, then shred with forks.",
+      "Warm the corn tortillas on the grate about 30 sec per side. Serve with avocado and a lime wedge."
+    ],
+    "prepSteps": [
+      "[MARINADE] In a large zip bag, mix the juice of 3 limes, cumin, chili powder, minced garlic, and avocado oil.",
+      "Add the chicken breasts, seal, and massage the marinade in. Refrigerate (holds Thu–Sat).",
+      "Slice the bell peppers and onion into strips; bag and refrigerate."
+    ]
+  },
+  {
+    "name": "Sheet Pan Chicken Fajitas",
+    "category": "Dinner",
+    "servings": 6,
+    "sourceUrl": null,
+    "ingredients": [
+      {
+        "name": "Chicken Breast",
+        "quantity": "1.5",
+        "unit": "lb"
+      },
+      {
+        "name": "Bell Pepper",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Onion",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Corn Tortillas",
+        "quantity": "12",
+        "unit": "count"
+      },
+      {
+        "name": "Avocado",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "section": "Marinade"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Cumin",
+        "quantity": "2",
+        "unit": "tsp"
+      },
+      {
+        "name": "Chili Powder",
+        "quantity": "2",
+        "unit": "tsp"
+      },
+      {
+        "name": "Lime",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Salt",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Black Pepper",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Preheat oven to 400°F.",
+      "Spread the marinated chicken strips, peppers, and onion on a sheet pan in a single layer.",
+      "Roast 25–30 min until the chicken is cooked through and the peppers are soft.",
+      "Serve in warm corn tortillas with avocado."
+    ],
+    "prepSteps": [
+      "Slice the chicken breasts into strips.",
+      "[MARINADE] Toss the chicken with avocado oil, cumin, chili powder, lime juice, salt, and pepper. Refrigerate covered.",
+      "Slice the bell peppers and onion into strips; store in the same or a separate container."
+    ]
+  }
+]

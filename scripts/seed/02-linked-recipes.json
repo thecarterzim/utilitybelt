@@ -1,0 +1,838 @@
+[
+  {
+    "name": "Chili Crunch Ground Chicken Bowls",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": "https://jenneatsgoood.com/chili-crunch-ground-chicken-bowl/",
+    "ingredients": [
+      {
+        "section": "Chili Crunch Cucumber Salad"
+      },
+      {
+        "name": "Chili Crunch",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Coconut Aminos",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Maple Syrup",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Rice Vinegar",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Fresh Ginger",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "English Cucumber",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Green Onions",
+        "quantity": "6",
+        "unit": "count"
+      },
+      {
+        "section": "Chili Crunch Chicken"
+      },
+      {
+        "name": "Olive Oil",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Ground Chicken",
+        "quantity": "1",
+        "unit": "lb"
+      },
+      {
+        "name": "Coconut Aminos",
+        "quantity": "0.33",
+        "unit": "cup"
+      },
+      {
+        "name": "Chili Crunch",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Maple Syrup",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Rice Vinegar",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Garlic Cloves",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Lime",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "section": "Serving"
+      },
+      {
+        "name": "Cooked White Rice",
+        "quantity": "3",
+        "unit": "cup"
+      },
+      {
+        "name": "Green Onion",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "[CHILI CRUNCH CUCUMBER SALAD] Whisk 1 tbsp chili crunch, 1 tbsp coconut aminos, maple syrup, rice vinegar, ginger and salt in a bowl; toss in the diced cucumber and sliced green onions, cover and chill until serving.",
+      "Cook your rice, quinoa or cauliflower rice per the package directions.",
+      "[CHILI CRUNCH CHICKEN] Heat the oil in a large skillet over medium heat and brown the ground chicken, stirring often, 5 to 7 minutes until cooked through.",
+      "[CHILI CRUNCH CHICKEN] Meanwhile whisk together 1/3 cup coconut aminos, 2 tbsp chili crunch, maple syrup, rice vinegar and grated garlic.",
+      "[CHILI CRUNCH CHICKEN] Pour the sauce over the chicken and simmer gently, stirring now and then, 3 to 5 minutes until slightly thickened; stir in the lime juice and take off the heat.",
+      "Divide the grain, chicken and cucumber salad among 4 bowls; finish with sliced green onion and extra chili crunch if you like."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Baked Salmon With Lemon And Garlic",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": "https://nyssaskitchen.com/baked-salmon-gluten-free-dairy-free-whole30-paleo-keto/",
+    "ingredients": [
+      {
+        "name": "Salmon Fillets (6oz Each)",
+        "quantity": "4",
+        "unit": "count"
+      },
+      {
+        "name": "Avocado Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Garlic Cloves",
+        "quantity": "2",
+        "unit": "count"
+      },
+      {
+        "name": "Fresh Lemon Juice",
+        "quantity": "2",
+        "unit": "tsp"
+      },
+      {
+        "name": "Paprika",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Black Pepper",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Fresh Parsley",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Fresh Dill",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Lemon Wedges",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Preheat the oven to 400F.",
+      "Check the salmon for pin bones and remove any you find.",
+      "Stir the oil, garlic, lemon juice, paprika, salt and pepper together in a small bowl.",
+      "Coat the fillets all over with the oil mixture, making sure some garlic sits on top of each, then lay them skin side down and spaced apart in a baking dish or on a rimmed sheet pan.",
+      "Bake 12 to 15 minutes, until the salmon is cooked to your liking.",
+      "Scatter parsley and dill over the top and serve with lemon wedges."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Greek Chicken Meatballs With Tzatziki",
+    "category": "Dinner",
+    "servings": 6,
+    "sourceUrl": "https://thewoodenskillet.com/greek-chicken-meatballs/",
+    "ingredients": [
+      {
+        "section": "Dairy-Free Tzatziki Sauce"
+      },
+      {
+        "name": "Mayonnaise",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Cucumber",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Fresh Lemon Juice",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Garlic",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Fresh Mint",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Dill",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Ground Black Pepper",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "section": "Greek Salad"
+      },
+      {
+        "name": "Cherry Tomatoes",
+        "quantity": "15",
+        "unit": "count"
+      },
+      {
+        "name": "English Cucumber",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Kalamata Olives",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Red Onion",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Greek Vinaigrette",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "section": "Greek Chicken Meatballs"
+      },
+      {
+        "name": "Ground Chicken",
+        "quantity": "1",
+        "unit": "lb"
+      },
+      {
+        "name": "Almond Flour",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Egg",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Fresh Mint",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Oregano",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Basil",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Dill",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Garlic Powder",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Onion Powder",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Ground Black Pepper",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Extra Virgin Olive Oil",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Greek Vinaigrette",
+        "quantity": "0.33",
+        "unit": "cup"
+      },
+      {
+        "section": "Serving (Optional)"
+      },
+      {
+        "name": "Feta Cheese",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Cooked Rice",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Lemon Orzo Pasta",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Pita Bread",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Quick Pickled Onions",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "[DAIRY-FREE TZATZIKI SAUCE] Blend the mayonnaise, diced cucumber, lemon juice, garlic, mint, dill, salt and pepper in a small food processor until smooth; adjust seasoning and refrigerate in a sealed container.",
+      "[GREEK SALAD] Toss the halved tomatoes, cucumber, olives, red onion and salt in a large bowl with 2 tbsp vinaigrette; set aside.",
+      "[GREEK CHICKEN MEATBALLS] Mix the ground chicken, almond flour, egg, mint, salt, oregano, basil, dill, garlic powder, onion powder and pepper thoroughly in a large bowl.",
+      "[GREEK CHICKEN MEATBALLS] Scoop about 1.5 tbsp portions, roll into balls and set on a plate until all the mixture is used.",
+      "[GREEK CHICKEN MEATBALLS] Heat the olive oil in a large cast iron skillet over medium-high heat and sear the meatballs on all sides, about 3 minutes.",
+      "[GREEK CHICKEN MEATBALLS] Lower the heat and keep cooking 10 to 15 minutes until the centers reach 165F.",
+      "[GREEK CHICKEN MEATBALLS] Move the cooked meatballs to a bowl, pour over 1/3 cup vinaigrette and toss to coat.",
+      "Plate the Greek salad with the meatballs and drizzle with tzatziki; or serve over rice with feta, in pita, or alongside lemon orzo."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Instant Pot Chicken Sweet Potato Curry",
+    "category": "Dinner",
+    "servings": 6,
+    "sourceUrl": "https://therealfooddietitians.com/instant-pot-sweet-potato-chicken-curry/",
+    "ingredients": [
+      {
+        "name": "Olive Oil",
+        "quantity": "2",
+        "unit": "tsp"
+      },
+      {
+        "name": "Yellow Onion",
+        "quantity": "0.5",
+        "unit": "count"
+      },
+      {
+        "name": "Garlic Cloves",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Chicken Breast",
+        "quantity": "1.5",
+        "unit": "lb"
+      },
+      {
+        "name": "Sweet Potato",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Red Bell Pepper",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Chicken Broth",
+        "quantity": "0.67",
+        "unit": "cup"
+      },
+      {
+        "name": "Curry Powder",
+        "quantity": "3",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Ground Cumin",
+        "quantity": "1.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Ground Turmeric",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Cayenne Pepper",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Sea Salt",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Coconut Milk (Full-Fat, 14oz Can)",
+        "quantity": "1",
+        "unit": "can"
+      },
+      {
+        "name": "Frozen Green Beans",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Cashews",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Cilantro",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Lime Wedges",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Cauliflower Rice",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Set the Instant Pot to saute, add the oil, onion and garlic, and cook until the onion turns translucent.",
+      "Add the chicken, sweet potato, bell pepper, broth, curry powder, cumin, turmeric, cayenne and salt.",
+      "Seal the lid and cook on high pressure for 10 minutes (it takes roughly 10 more minutes to come to pressure).",
+      "Quick-release the pressure, remove the lid and switch back to saute.",
+      "Stir in the coconut milk and frozen green beans and cook 2 to 3 minutes until the beans are hot; adjust curry powder and salt to taste.",
+      "Serve over cauliflower rice, rice or greens, topped with cashews, cilantro and lime wedges."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "One-Pan Tuscan Chicken And Rice",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": "https://jenneatsgoood.com/one-pan-tuscan-inspired-chicken-rice/",
+    "ingredients": [
+      {
+        "name": "Sun-Dried Tomatoes In Oil (8oz Jar)",
+        "quantity": "1",
+        "unit": "unit"
+      },
+      {
+        "name": "Chicken Breast",
+        "quantity": "1.5",
+        "unit": "lb"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Ground Black Pepper",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Garlic Powder",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Chili Powder",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Basil",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Oregano",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Red Pepper Flakes",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Garlic Cloves",
+        "quantity": "6",
+        "unit": "count"
+      },
+      {
+        "name": "Shallot",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Olive Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Jasmine Rice",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Portabella Mushrooms",
+        "quantity": "4",
+        "unit": "oz"
+      },
+      {
+        "name": "Chicken Broth (Low-Sodium)",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Coconut Milk (Canned)",
+        "quantity": "0.75",
+        "unit": "cup"
+      },
+      {
+        "name": "Lemon",
+        "quantity": "0.5",
+        "unit": "count"
+      },
+      {
+        "name": "Baby Spinach",
+        "quantity": "3",
+        "unit": "cup"
+      },
+      {
+        "name": "Fresh Basil",
+        "quantity": "0.33",
+        "unit": "cup"
+      }
+    ],
+    "instructions": [
+      "Pour the oil from the sun-dried tomato jar into a lidded container (keep the tomatoes), add the chicken with the salt, pepper, garlic powder, chili powder, basil, oregano and red pepper flakes, and rub to coat.",
+      "Mix in the minced shallot and garlic, arrange the chicken on top, cover and marinate in the fridge at least 30 minutes or overnight.",
+      "Heat the olive oil in a deep skillet over medium heat, lift the chicken out (leaving the shallot and garlic behind) and cook about 5 minutes per side until nearly done, 155 to 160F; set aside.",
+      "Add the shallot, garlic and any leftover oil from the container to the pan and cook 2 to 3 minutes, stirring; add the rice and toast 1 to 2 minutes.",
+      "Stir in the mushrooms and sun-dried tomatoes and cook 2 to 3 minutes more.",
+      "Pour in the broth, coconut milk and lemon juice, salt to taste, add the spinach and bring to a simmer.",
+      "Reduce to medium-low, lay the chicken on top, cover and cook 15 to 20 minutes, stirring once halfway, until the rice is fluffy and the chicken reads 165F.",
+      "Divide among 4 plates and top with chopped basil."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Salmon With Creamy Spinach Risotto",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": "https://jenneatsgoood.com/salmon-with-hidden-veggie-creamy-spinach-risotto/",
+    "ingredients": [
+      {
+        "name": "Dried Basil",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Dried Oregano",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Kosher Salt",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Ground Black Pepper",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Chili Powder",
+        "quantity": "0.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Salmon Fillets (6oz Each)",
+        "quantity": "4",
+        "unit": "count"
+      },
+      {
+        "name": "Olive Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Shallot",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Garlic Cloves",
+        "quantity": "4",
+        "unit": "count"
+      },
+      {
+        "name": "Jasmine Rice",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Frozen Cauliflower Rice",
+        "quantity": "12",
+        "unit": "oz"
+      },
+      {
+        "name": "Vegetable Broth (Low-Sodium)",
+        "quantity": "1",
+        "unit": "cup"
+      },
+      {
+        "name": "Coconut Milk (Full-Fat)",
+        "quantity": "0.75",
+        "unit": "cup"
+      },
+      {
+        "name": "Lemon",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Baby Spinach",
+        "quantity": "3",
+        "unit": "cup"
+      },
+      {
+        "name": "Fresh Basil",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Combine the basil, oregano, salt, pepper and chili powder; pat the salmon dry and coat the tops and sides with the spice mix.",
+      "Heat the olive oil in a deep lidded skillet over medium heat, add the salmon skin side up and cook 4 minutes; flip and cook 4 to 7 minutes more until it reaches 145F, then set aside.",
+      "In the same skillet cook the shallot and garlic 1 to 2 minutes until translucent, add the rice and toast 1 minute, then stir in the cauliflower rice and cook about 4 minutes until thawed; season with salt and pepper.",
+      "Add the broth, coconut milk and lemon juice, bring to a simmer, cover and cook 10 to 13 minutes until the liquid is nearly absorbed, stirring once or twice (drop to medium-low on a gas stove; add a splash of broth if needed).",
+      "Stir in the spinach until wilted, remove from the heat and return the salmon to the top of the risotto.",
+      "Garnish with chopped basil and divide among 4 plates."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Vegetable Lentil Soup",
+    "category": "Dinner",
+    "servings": 8,
+    "sourceUrl": "https://www.simplyrecipes.com/recipes/vegetable_lentil_soup/",
+    "ingredients": [
+      {
+        "name": "Olive Oil",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Yellow Onion",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Tomato Paste",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Dried Thyme",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Garlic Clove",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Celery Stalks",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "Carrots",
+        "quantity": "3",
+        "unit": "count"
+      },
+      {
+        "name": "French Green Lentils",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Water",
+        "quantity": "8",
+        "unit": "cup"
+      },
+      {
+        "name": "Soy Sauce (Low-Sodium)",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Salt",
+        "quantity": "1.5",
+        "unit": "tsp"
+      },
+      {
+        "name": "Black Pepper",
+        "quantity": "0.125",
+        "unit": "tsp"
+      },
+      {
+        "name": "Lemon Juice",
+        "quantity": "3",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Kale",
+        "quantity": "0.5",
+        "unit": "count"
+      }
+    ],
+    "instructions": [
+      "Warm the olive oil in a soup pot over medium heat and cook the onion, stirring occasionally, about 10 minutes until deeply golden.",
+      "Push the onion aside, add the tomato paste to the cleared spot and stir 2 to 3 minutes until it darkens to a rusty brown.",
+      "Add the thyme, garlic, celery and carrots and cook 2 minutes.",
+      "Add the lentils, 8 cups water, soy sauce, salt and pepper; keep at a gentle simmer over medium heat for 55 to 60 minutes until the lentils are tender.",
+      "Puree 2 cups of the soup in a blender (or pulse briefly with an immersion blender) and stir it back in for body, then add the lemon juice.",
+      "Stir in the kale and simmer 1 to 2 minutes until softened; season with more salt, pepper or lemon juice and serve with crusty bread or a salad."
+    ],
+    "prepSteps": []
+  },
+  {
+    "name": "Easy Lentil Patties",
+    "category": "Dinner",
+    "servings": 4,
+    "sourceUrl": "https://www.yummytoddlerfood.com/baked-falafel-recipe-with-lentils-and-carrots/",
+    "ingredients": [
+      {
+        "name": "Cooked Lentils",
+        "quantity": "2",
+        "unit": "cup"
+      },
+      {
+        "name": "Fresh Cilantro",
+        "quantity": "0.5",
+        "unit": "cup"
+      },
+      {
+        "name": "Garlic Clove",
+        "quantity": "1",
+        "unit": "count"
+      },
+      {
+        "name": "Cumin",
+        "quantity": "1",
+        "unit": "tsp"
+      },
+      {
+        "name": "Salt",
+        "quantity": "0.25",
+        "unit": "tsp"
+      },
+      {
+        "name": "Flour",
+        "quantity": "2",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Fresh Lemon Juice",
+        "quantity": "1",
+        "unit": "tbsp"
+      },
+      {
+        "name": "Olive Oil",
+        "quantity": "1",
+        "unit": "unit"
+      }
+    ],
+    "instructions": [
+      "Put everything except the flour in a food processor and blend until very smooth, scraping down the sides as needed.",
+      "Pulse in the flour just until combined.",
+      "Portion the mixture with a 1 tbsp measuring spoon, roll into balls and flatten into patties (add a little more flour if sticky, a splash of water if dry).",
+      "Heat olive oil in a medium skillet over medium heat and cook the patties 4 minutes per side, pressing gently after flipping; serve warm with dips.",
+      "Oven option: bake on a parchment-lined pan at 375F for 20 to 22 minutes until lightly browned.",
+      "Air fryer option: cook at 375F for 10 to 12 minutes, spritzing the tops with olive oil for extra browning."
+    ],
+    "prepSteps": []
+  }
+]
