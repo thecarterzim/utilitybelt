@@ -16,18 +16,6 @@ create table if not exists recipes (
   created_at timestamptz not null default now()
 );
 
--- NO LONGER USED by the app (the 7-day calendar was replaced by the
--- "This week" buckets in week_items). Safe to drop, along with the
--- meal_plan alter-table lines further down.
-create table if not exists meal_plan (
-  id uuid primary key default gen_random_uuid(),
-  date date not null,
-  slot text not null check (slot in ('breakfast', 'lunch', 'dinner', 'snack')),
-  recipe_id uuid references recipes(id) on delete set null,
-  created_at timestamptz not null default now(),
-  unique (date, slot)
-);
-
 create table if not exists shopping_list_items (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -105,51 +93,16 @@ begin
   end if;
 end $$;
 
--- A slot's meal is either a real recipe (recipe_id) or a one-off custom
--- meal (custom_meal) typed in on the spot — never both. Custom meals are
--- intentionally NOT saved to the recipes table; they only ever live here.
-alter table meal_plan add column if not exists custom_meal jsonb;
-
--- When recipe_id points to a recipe with flexible ingredients (swappable
--- options like "pick your vegetables" in a curry), this holds the ids of
--- the ingredient lines that are toggled ON for THIS specific occurrence —
--- independent of any other date/slot using the same recipe. Null means
--- "use the recipe's own defaults" (recipes without flex ingredients, or
--- rows saved before this feature existed).
-alter table meal_plan add column if not exists flex_selection jsonb;
-
--- Whether this planned meal has actually been eaten — toggled from Home's
--- today card, independent of the slot's own date/time. Resets to false
--- whenever a slot is (re)assigned a new recipe or custom meal.
-alter table meal_plan add column if not exists eaten boolean not null default false;
-
--- Extra items eaten on a given day outside any planned meal slot. Simpler
--- than a recipe ingredient on purpose — just a label and a calorie count,
--- no protein/fiber tracking, no link back to the ingredient library (the
--- library is only used client-side as a convenience to look up calories
--- when adding one of these).
--- NO LONGER USED by the app (daily extras went away with the calendar).
--- Safe to drop.
-create table if not exists daily_extras (
-  id uuid primary key default gen_random_uuid(),
-  date date not null,
-  name text not null,
-  calories numeric not null default 0,
-  created_at timestamptz not null default now()
-);
-
 alter table recipes enable row level security;
-alter table meal_plan enable row level security;
 alter table shopping_list_items enable row level security;
 alter table ingredients enable row level security;
-alter table daily_extras enable row level security;
 
 -- RLS blocks row access without a matching policy, but table-level access is a
 -- separate Postgres GRANT layer underneath it. New Supabase projects usually
 -- set this up automatically for service_role, but it's not guaranteed —
 -- without it, even the service role key gets "permission denied for table".
 grant usage on schema public to service_role;
-grant all on public.recipes, public.meal_plan, public.shopping_list_items, public.ingredients, public.daily_extras to service_role;
+grant all on public.recipes, public.shopping_list_items, public.ingredients to service_role;
 
 -- Migration: existing recipes predate the per-line "whole recipe" vs
 -- "per serving" toggle, so their ingredient objects have no servingMode key.
