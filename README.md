@@ -122,8 +122,21 @@ applying a migration without opening the SQL editor.
 2. Add the same environment variables (`SUPABASE_URL`,
    `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD`, `ANTHROPIC_API_KEY`) in the
    Vercel project settings, making sure each is enabled for the **Production**
-   environment, not just Preview/Development.
+   environment, not just Preview/Development. Also add `CRON_SECRET` (any
+   long random string, e.g. `openssl rand -hex 32`) — see "Keep-alive cron"
+   below.
 3. Deploy.
+
+### Keep-alive cron
+
+Supabase's free tier pauses a project after about a week without database
+activity, and a paused project makes the app look like it lost all its data
+until someone clicks "Restore project" in the Supabase dashboard.
+`vercel.json` schedules a daily cron that calls `/api/keepalive`, which runs
+one trivial query against `recipes` so the project never goes idle. Vercel
+sends `Authorization: Bearer <CRON_SECRET>` with each cron request and the
+route rejects anything else, so `CRON_SECRET` must be set in the Vercel
+project for the ping to work. The cron does nothing on local dev.
 
 Vercel rejects a deployment if the commit author's email is not a verified
 email on the GitHub account doing the push. Set
@@ -152,7 +165,7 @@ only the tip commit is checked.
   every table.
 - **Password gate.** `proxy.ts` (Next.js 16's replacement for `middleware.ts`)
   redirects any request without a valid `site_auth` cookie to `/login`, except
-  `/login` and `/api/login` themselves. The cookie is an HMAC of a fixed
+  `/login`, `/api/login`, and the cron-only `/api/keepalive`. The cookie is an HMAC of a fixed
   payload keyed by `SITE_PASSWORD` (`lib/site-auth.ts`), `HttpOnly`, with a
   10-year expiry. There are no sessions to revoke; changing `SITE_PASSWORD`
   signs everyone out at once because old cookies were signed with the old

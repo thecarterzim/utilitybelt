@@ -5,13 +5,15 @@ import { AUTH_COOKIE_NAME, isValidAuthToken, safeNextPath } from "@/lib/site-aut
 // Gates the entire site behind one shared password (see lib/site-auth.ts).
 // /login and /api/login are the only paths that must stay reachable
 // without a valid cookie, since there's no cookie yet to check.
+// /api/keepalive is hit by a Vercel cron, not a browser, and guards itself
+// with CRON_SECRET instead (see app/api/keepalive/route.ts).
 // Everything else, including /list and Server Function POSTs (which
 // Next.js routes to the page they were called from, not a separate path),
 // gets redirected to the login form.
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/login" || pathname === "/api/login") {
+  if (pathname === "/login" || pathname === "/api/login" || pathname === "/api/keepalive") {
     return NextResponse.next();
   }
 
