@@ -1,7 +1,7 @@
 # The Larder
 
 A recipe book, weekly prep planner, and shopping list for one household.
-Next.js (App Router) + Supabase. One shared site password, no accounts.
+Next.js (App Router) + Supabase. Open to anyone with the link, no accounts.
 
 ## Origins
 
@@ -76,7 +76,6 @@ removed; recipe import now happens inside the app.
    - `SUPABASE_URL` — the Project URL.
    - `SUPABASE_SERVICE_ROLE_KEY` — a secret key from Project Settings → API
      Keys (or the legacy `service_role` key).
-   - `SITE_PASSWORD` — the one password everyone in the household uses.
    - `ANTHROPIC_API_KEY` — needed for "Add a recipe" from a link, screenshot,
      or text.
    - `SUPABASE_ACCESS_TOKEN` (optional) — a personal access token, only used
@@ -86,8 +85,7 @@ removed; recipe import now happens inside the app.
    npm install
    npm run dev
    ```
-   Open [http://localhost:3000](http://localhost:3000) and sign in with the
-   site password.
+   Open [http://localhost:3000](http://localhost:3000).
 
 Never commit `.env.local`; it holds the keys.
 
@@ -120,7 +118,7 @@ applying a migration without opening the SQL editor.
 
 1. Push the repo to GitHub and import it in Vercel.
 2. Add the same environment variables (`SUPABASE_URL`,
-   `SUPABASE_SERVICE_ROLE_KEY`, `SITE_PASSWORD`, `ANTHROPIC_API_KEY`) in the
+   `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`) in the
    Vercel project settings, making sure each is enabled for the **Production**
    environment, not just Preview/Development. Also add `CRON_SECRET` (any
    long random string, e.g. `openssl rand -hex 32`) — see "Keep-alive cron"
@@ -163,13 +161,8 @@ only the tip commit is checked.
   need an explicit `grant all on public.<table> to service_role;` — RLS and
   Postgres grants are separate layers, and the schema file includes this for
   every table.
-- **Password gate.** `proxy.ts` (Next.js 16's replacement for `middleware.ts`)
-  redirects any request without a valid `site_auth` cookie to `/login`, except
-  `/login`, `/api/login`, and the cron-only `/api/keepalive`. The cookie is an HMAC of a fixed
-  payload keyed by `SITE_PASSWORD` (`lib/site-auth.ts`), `HttpOnly`, with a
-  10-year expiry. There are no sessions to revoke; changing `SITE_PASSWORD`
-  signs everyone out at once because old cookies were signed with the old
-  value.
+- **No auth.** The site is open: anyone with the URL can read and edit.
+  Only the cron-only `/api/keepalive` checks a secret (`CRON_SECRET`).
 - **Recipe import.** `app/api/import/parse/route.ts` accepts a URL, pasted
   text, or up to six images. A URL goes through
   `lib/server/fetch-recipe-source.ts`: Instagram captions are read from the
@@ -179,6 +172,5 @@ only the tip commit is checked.
   a structured-output draft (validated by a Zod schema) and matches
   ingredients against the library. Sites that block server-side fetching, or
   Instagram posts whose recipe is gated behind "comment RECIPE", come back
-  with `needsScreenshot` and the UI asks for a screenshot instead. The route
-  sits behind the same password gate as every page, so the session cookie is
-  the only auth.
+  with `needsScreenshot` and the UI asks for a screenshot instead. Like every
+  page, the route is unauthenticated.

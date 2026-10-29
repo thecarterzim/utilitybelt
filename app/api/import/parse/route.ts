@@ -9,9 +9,8 @@ import type { LibraryIngredient } from "@/lib/types";
 //   -> { payload: RecipeImportPayload, notes: string, source: {...} }
 //   -> { error: string, needsScreenshot?: true }
 //
-// Sits behind the site-wide password gate like every other page (proxy.ts),
-// so the browser's session cookie is the only auth. A URL is fetched
-// server-side first; text and photos go straight to the parser.
+// Unauthenticated, like the rest of the site. A URL is fetched server-side
+// first; text and photos go straight to the parser.
 
 export const maxDuration = 120;
 
